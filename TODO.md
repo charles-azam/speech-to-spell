@@ -41,3 +41,5 @@ Additional features:
 - le ton est important
 
 Then after we want the fastest path to deployment (maybe the players just make a room). 
+
+Mood: The website should look like a wizard school. And the cursor should be a magic wand. THere should be a few animation that looks like magic. 
