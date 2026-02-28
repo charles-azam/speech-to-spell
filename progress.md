@@ -36,6 +36,11 @@
 - `frontend/src/effects/SpellEffects.tsx`: Screen shake, color tint flash, spell name slam animation, emoji particle rain
 - `frontend/src/styles/game.css`: Full fantasy theme — dark wizard aesthetic, gold accents, animated effects
 
+### Tooling & Config
+- Backend migrated from `requirements.txt` to `uv` (`pyproject.toml` + `uv.lock`)
+- Frontend `.gitignore` expanded (dist, editor files, VAD assets copied to public/)
+- Backend `.gitignore` added (.venv, __pycache__, .env)
+
 ## Status
 - All 5 phases implemented, TypeScript compiles clean
 - Not yet tested end-to-end with real audio/Mistral API calls

@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-mistralai
-python-dotenv
-python-multipart
-websockets
