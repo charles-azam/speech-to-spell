@@ -1,5 +1,5 @@
-import { EmojiParticles } from "./EmojiParticles";
-import type { PlayerSide } from "../types";
+import { SpellEffect } from "./SpellEffect";
+import type { PlayerSide, VisualEffect } from "../types";
 
 interface WizardPanelProps {
   side: PlayerSide;
@@ -12,7 +12,7 @@ interface WizardPanelProps {
   hitColor: string | null;
   health: number;
   mana: number;
-  emojis: string[];
+  visualEffect: VisualEffect | null;
 }
 
 function StatBar({
@@ -56,7 +56,7 @@ export function WizardPanel({
   hitColor,
   health,
   mana,
-  emojis,
+  visualEffect,
 }: WizardPanelProps) {
   const isLeft = side === "left";
 
@@ -91,9 +91,9 @@ export function WizardPanel({
         </div>
       )}
 
-      {/* Emoji particle burst */}
-      {emojis.length > 0 && (
-        <EmojiParticles emojis={emojis} color={hitColor} />
+      {/* Visual spell effect */}
+      {visualEffect && (
+        <SpellEffect effect={visualEffect} />
       )}
 
       {/* Wizard avatar + name */}

@@ -54,7 +54,58 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         raw = await websocket.receive_text()
         message = json.loads(raw)
 
-        if message["type"] == "audio":
+        if message["type"] == "text_spell":
+            # Direct text spell — bypass STT pipeline (for testing)
+            player = message["player"]
+            text = message["text"]
+
+            if not text.strip() or game.winner:
+                continue
+
+            logger.info(f"Text spell from player {player}: {text}")
+
+            await websocket.send_text(json.dumps({
+                "type": "transcription",
+                "player": player,
+                "text": text,
+            }))
+
+            context = format_game_context(game=game, caster=player)
+            spell = await asyncio.to_thread(
+                interpret_spell,
+                transcription=text,
+                game_context=context,
+            )
+            logger.info(
+                f"Spell for player {player}: {spell.spell_name} "
+                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, ve={spell.visual_effect})"
+            )
+
+            game = apply_spell(game=game, caster=player, spell=spell)
+
+            opponent = "right" if player == "left" else "left"
+            await websocket.send_text(json.dumps({
+                "type": "spell_result",
+                "caster": player,
+                "target": opponent,
+                "spell_name": spell.spell_name,
+                "color": spell.color,
+                "damage": spell.damage,
+                "mana_cost": spell.mana_cost,
+                "visual_effect": spell.visual_effect.model_dump() if spell.visual_effect else None,
+            }))
+
+            await send_game_state(websocket=websocket, game=game)
+
+            if ENABLE_SOUND_EFFECTS and spell.sound_id:
+                sound_bytes = load_sound(sound_id=spell.sound_id)
+                if sound_bytes:
+                    await websocket.send_text(json.dumps({
+                        "type": "sound_effect",
+                        "audio": base64.b64encode(sound_bytes).decode(),
+                    }))
+
+        elif message["type"] == "audio":
             player = message["player"]
             audio_b64 = message["audio"]
             audio_bytes = base64.b64decode(audio_b64)
@@ -99,7 +150,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             )
             logger.info(
                 f"Spell for player {player}: {spell.spell_name} "
-                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, emojis={spell.emojis})"
+                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, ve={spell.visual_effect})"
             )
 
             # Apply spell to game state
@@ -114,7 +165,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "color": spell.color,
                 "damage": spell.damage,
                 "mana_cost": spell.mana_cost,
-                "emojis": spell.emojis,
+                "visual_effect": spell.visual_effect.model_dump() if spell.visual_effect else None,
             }))
 
             await send_game_state(websocket=websocket, game=game)

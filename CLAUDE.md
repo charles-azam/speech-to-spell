@@ -103,10 +103,12 @@ These are not decided yet but could add depth:
 - **Language-based bonuses**: casting "blizzard" in a Nordic language is more powerful than in a Latin language — the spell's cultural origin matters
 - **Spell suggestions at the start**: show players a few example spells at the beginning to lower the entry barrier
 - **Spell combinations between teammates** (in team mode): two players casting complementary spells get amplified effects
-
+- **game equilibrum** you need to have very strong spells to cause damage but those cost a lot of mana so you might want to use cut and funny spells to recharge your mana
+- **add some spell understanding the UI**, like moving a character for instance
 ## Good practice
 It has to be as fast as possible. So for instance there might be multiple sound tracks like sound effect and commentator being recorded.
 
 # Critical
 
 You must in a progress.md file keep track of what you achieved and the features that have been developped. You can also give context to what extend the features are polished / tested / in progress.
+

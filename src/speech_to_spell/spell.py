@@ -4,6 +4,7 @@ import os
 
 from dotenv import load_dotenv
 from mistralai import Mistral
+from openai import OpenAI
 from pydantic import BaseModel
 
 from speech_to_spell.sound import SOUND_IDS, get_sound_descriptions
@@ -12,122 +13,103 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+# --- Model switching via env var ---
+SPELL_MODEL = os.environ.get("SPELL_MODEL", "gpt-oss")
 
+# Mistral client (always initialized — used for Ministral fallback and other features)
+_mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
 MINISTRAL_MODEL = "ministral-8b-latest"
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "name_spell",
-            "description": "Give the spell a dramatic name based on what the wizard said.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "The name of the spell, short and dramatic. E.g. 'Infernal Blaze', 'Frozen Hurricane', 'Rain of Cats'.",
-                    },
+# HuggingFace/OpenAI-compatible client for GPT-OSS 120B via Cerebras
+_hf_client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.environ.get("HUGGINGFACE_API_KEY", ""),
+)
+GPT_OSS_MODEL = "openai/gpt-oss-120b:cerebras"
+
+# --- Single tool definition ---
+
+VALID_TEMPLATES = {
+    "explosion", "swirl", "rain", "wave_left", "wave_right",
+    "shatter", "pulse", "spiral", "rise",
+}
+
+CAST_SPELL_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "cast_spell",
+        "description": "Judge the spell and produce all effects in a single call.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "spell_name": {
+                    "type": "string",
+                    "description": "Dramatic spell name. E.g. 'Infernal Blaze', 'Rain of Cats'.",
                 },
-                "required": ["name"],
+                "damage": {
+                    "type": "integer",
+                    "description": "Damage dealt (1-50). Creative=high, boring=low.",
+                },
+                "mana_cost": {
+                    "type": "integer",
+                    "description": "Mana cost (5-40). Creative=cheap, spam=expensive.",
+                },
+                "sound_id": {
+                    "type": "string",
+                    "enum": SOUND_IDS,
+                    "description": "Sound effect to play.",
+                },
+                "emojis": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "description": "1-3 emojis for the particle burst.",
+                },
+                "template": {
+                    "type": "string",
+                    "enum": sorted(VALID_TEMPLATES),
+                    "description": "Animation pattern for the emoji particles.",
+                },
+                "primary_color": {
+                    "type": "string",
+                    "description": "Main CSS color (e.g. '#ff4500').",
+                },
+                "secondary_color": {
+                    "type": "string",
+                    "description": "Accent CSS color (e.g. '#ff8c00').",
+                },
             },
+            "required": [
+                "spell_name", "damage", "mana_cost", "sound_id",
+                "emojis", "template", "primary_color", "secondary_color",
+            ],
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "change_color",
-            "description": "Change the color of the opponent's panel to reflect the spell's nature. Use any valid CSS color.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "color": {
-                        "type": "string",
-                        "description": "A CSS color value that matches the spell's element/mood. E.g. '#ff4500' for fire, '#00bfff' for ice, '#7cfc00' for nature, '#8b00ff' for dark magic.",
-                    },
-                },
-                "required": ["color"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "evaluate_spell",
-            "description": "Judge the spell's power and mana cost. More creative/original spells deal more damage and cost less mana. Boring or repeated spells are weak and expensive.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "damage": {
-                        "type": "integer",
-                        "description": "Damage dealt to the opponent (1-50). Weak/boring spells: 1-10. Average: 10-25. Creative/powerful: 25-40. Exceptional: 40-50.",
-                    },
-                    "mana_cost": {
-                        "type": "integer",
-                        "description": "Mana consumed by the caster (5-40). Creative spells are efficient (5-15). Generic spells cost more (20-40). Spam costs maximum mana.",
-                    },
-                },
-                "required": ["damage", "mana_cost"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "pick_sound",
-            "description": "Pick the most fitting sound effect for this spell from the available bank.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "sound_id": {
-                        "type": "string",
-                        "enum": SOUND_IDS,
-                        "description": "The ID of the sound effect to play.",
-                    },
-                },
-                "required": ["sound_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "pick_emojis",
-            "description": "Pick 1-3 emojis that represent this spell for a particle burst effect. E.g. 🔥 for fire, ❄️ for ice, 🐱 for cats, 💔 for emotional damage, 💀 for death, ⚡ for lightning, 🌊 for water, 🌿 for nature, 🎆 for explosions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "emojis": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 1,
-                        "maxItems": 3,
-                        "description": "1 to 3 emoji characters that visually represent the spell.",
-                    },
-                },
-                "required": ["emojis"],
-            },
-        },
-    },
-]
+}
+
+TOOLS = [CAST_SPELL_TOOL]
 
 _sound_descriptions = get_sound_descriptions()
 
 SYSTEM_PROMPT = f"""You are the judge of a wizard duel game. A wizard just cast a spell by speaking out loud.
 You will receive the transcription of what they said and the current game state.
 
-You have 5 tools available. Call only the ones that are relevant — not every spell needs all tools:
-- `name_spell` — give the spell a dramatic, fun name. Call this for every real spell.
-- `change_color` — set a CSS color matching the spell's element/mood. Call this for every real spell.
-- `evaluate_spell` — judge the damage and mana cost. Call this for every real spell.
-- `pick_sound` — pick a sound effect from the available bank. Call this for every real spell.
-- `pick_emojis` — pick 1-3 emojis for a particle burst on screen. Call this for every real spell.
+You MUST call the `cast_spell` tool exactly once with your judgment.
 
 Available sounds:
 {_sound_descriptions}
 
-If the wizard said something that isn't really a spell (gibberish, silence, just talking), you can call fewer tools or skip some.
+Animation templates:
+- explosion: particles burst outward from center (fire, bombs, impacts)
+- swirl: particles orbit around center (wind, vortex, magic)
+- rain: particles fall from top (rain, snow, debris)
+- wave_left: sweep left to right (push, blast, charge)
+- wave_right: sweep right to left (push, blast, charge)
+- shatter: pieces fly apart from center (breaking, destruction)
+- pulse: central glow throbs (healing, aura, power-up)
+- spiral: particles follow spiral paths outward (cosmic, mystic)
+- rise: particles float upward (fire, spirits, levitation)
 
 Balance rules:
 - Originality is rewarded: creative spells deal more damage and cost less mana
@@ -135,7 +117,18 @@ Balance rules:
 - Overpowered spam is punished: saying "I destroy everything" should cost tons of mana and deal little damage
 - Funny/weird spells get a bonus: "emotional damage" or "rain of cats" should be surprisingly effective
 - Consider the game state: if a wizard is low on mana, they can still cast weak spells
+- Pick emojis that match the spell's theme (e.g. fire=🔥, ice=❄️, cats=🐱)
 """
+
+
+class VisualEffect(BaseModel):
+    template: str = "explosion"
+    primary_color: str = "#ff4500"
+    secondary_color: str = "#ff8c00"
+    particle_count: int = 25
+    scale: float = 1.0
+    duration_s: float = 2.0
+    emojis: list[str] = []
 
 
 class SpellResult(BaseModel):
@@ -144,16 +137,73 @@ class SpellResult(BaseModel):
     damage: int = 0
     mana_cost: int = 0
     sound_id: str | None = None
-    emojis: list[str] = []
+    visual_effect: VisualEffect | None = None
 
 
-def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
-    """Send transcription to Ministral, parse tool calls, return spell result."""
+def _parse_cast_spell(args: dict) -> SpellResult:
+    """Parse the single cast_spell tool call into a SpellResult."""
+    damage = max(0, min(50, args.get("damage", 0)))
+
+    # Derive visual params from damage — the LLM doesn't need to think about these
+    particle_count = 15 + int(damage * 0.7)  # 15-50
+    scale = 0.6 + damage / 50 * 1.4          # 0.6-2.0
+    duration_s = 1.5 + damage / 50 * 1.5     # 1.5-3.0
+
+    template = args.get("template", "explosion")
+    if template not in VALID_TEMPLATES:
+        template = "explosion"
+
+    sound_id = args.get("sound_id")
+    if sound_id not in SOUND_IDS:
+        sound_id = None
+
+    return SpellResult(
+        spell_name=args.get("spell_name"),
+        color=args.get("primary_color", "#ff4500"),
+        damage=damage,
+        mana_cost=max(0, min(40, args.get("mana_cost", 0))),
+        sound_id=sound_id,
+        visual_effect=VisualEffect(
+            template=template,
+            primary_color=args.get("primary_color", "#ff4500"),
+            secondary_color=args.get("secondary_color", "#ff8c00"),
+            particle_count=particle_count,
+            scale=round(scale, 2),
+            duration_s=round(duration_s, 2),
+            emojis=args.get("emojis", ["✨"])[:3],
+        ),
+    )
+
+
+def _parse_tool_calls_mistral(tool_calls: list) -> SpellResult:
+    """Parse tool calls from Mistral SDK response."""
+    for tool_call in tool_calls:
+        name = tool_call.function.name
+        args = json.loads(tool_call.function.arguments)
+        logger.info(f"Tool call: {name}({args})")
+        if name == "cast_spell":
+            return _parse_cast_spell(args=args)
+    return SpellResult()
+
+
+def _parse_tool_calls_openai(tool_calls: list) -> SpellResult:
+    """Parse tool calls from OpenAI SDK response."""
+    for tool_call in tool_calls:
+        name = tool_call.function.name
+        args = json.loads(tool_call.function.arguments)
+        logger.info(f"Tool call: {name}({args})")
+        if name == "cast_spell":
+            return _parse_cast_spell(args=args)
+    return SpellResult()
+
+
+def _interpret_mistral(transcription: str, game_context: str) -> SpellResult:
+    """Interpret spell via Mistral SDK (Ministral 8B)."""
     user_content = f'The wizard shouted: "{transcription}"'
     if game_context:
         user_content += f"\n\nCurrent game state:\n{game_context}"
 
-    response = _client.chat.complete(
+    response = _mistral_client.chat.complete(
         model=MINISTRAL_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -163,26 +213,38 @@ def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
         tool_choice="any",
     )
 
-    result = SpellResult()
     tool_calls = response.choices[0].message.tool_calls or []
+    return _parse_tool_calls_mistral(tool_calls=tool_calls)
 
-    for tool_call in tool_calls:
-        args = json.loads(tool_call.function.arguments)
-        logger.info(f"Tool call: {tool_call.function.name}({args})")
 
-        if tool_call.function.name == "name_spell":
-            result.spell_name = args["name"]
-        elif tool_call.function.name == "change_color":
-            result.color = args["color"]
-        elif tool_call.function.name == "evaluate_spell":
-            result.damage = max(0, min(50, args.get("damage", 0)))
-            result.mana_cost = max(0, min(40, args.get("mana_cost", 0)))
-        elif tool_call.function.name == "pick_sound":
-            sound_id = args.get("sound_id")
-            if sound_id in SOUND_IDS:
-                result.sound_id = sound_id
-        elif tool_call.function.name == "pick_emojis":
-            emojis = args.get("emojis", [])
-            result.emojis = emojis[:3]
+def _interpret_gpt_oss(transcription: str, game_context: str) -> SpellResult:
+    """Interpret spell via GPT-OSS 120B on HuggingFace (OpenAI SDK)."""
+    user_content = f'The wizard shouted: "{transcription}"'
+    if game_context:
+        user_content += f"\n\nCurrent game state:\n{game_context}"
 
-    return result
+    response = _hf_client.chat.completions.create(
+        model=GPT_OSS_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        tools=TOOLS,
+        tool_choice="auto",
+    )
+
+    tool_calls = response.choices[0].message.tool_calls or []
+    return _parse_tool_calls_openai(tool_calls=tool_calls)
+
+
+def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
+    """Send transcription to LLM, parse tool calls, return spell result.
+
+    Routes to GPT-OSS 120B (default) or Ministral 8B based on SPELL_MODEL env var.
+    """
+    if SPELL_MODEL == "ministral-8b":
+        logger.info(f"Using Ministral 8B for spell: {transcription!r}")
+        return _interpret_mistral(transcription=transcription, game_context=game_context)
+
+    logger.info(f"Using GPT-OSS 120B for spell: {transcription!r}")
+    return _interpret_gpt_oss(transcription=transcription, game_context=game_context)

@@ -11,6 +11,7 @@ dependencies = [
     "elevenlabs>=2.37.0",
     "fastapi>=0.134.0",
     "mistralai>=1.12.4",
+    "openai>=2.24.0",
     "python-dotenv>=1.2.1",
     "uvicorn[standard]>=0.41.0",
     "websockets>=16.0",

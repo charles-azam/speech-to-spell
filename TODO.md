@@ -22,3 +22,22 @@ pour charles:
 - rajouter les commentateurs, sûrement en STT
 - rajouter les sounds effects 
 - essayer de call directement voxtral tool calling to reduce latency
+
+# New direction
+
+Now we want for each wizzard to start with 10 different emojis randomly picked among a huge bank of all of the emojis. 
+
+Then each sorcerer can use the mouse to hand pick at least two emojis. More is better. 
+
+Then he needs to speak to create an attack spell "rain of dogs" for instance. 
+
+He speaks to a judge. The judge can either say YES NO or leave you room for explaination "explain yourself".
+
+These spells can either be for you or for the other. (increase your life or decrease the life of your friend).
+
+Additional features:
+- The judge make funny comments "même toi tu n'y crois pas"
+- having commentator on top of the judge
+- le ton est important
+
+Then after we want the fastest path to deployment (maybe the players just make a room). 

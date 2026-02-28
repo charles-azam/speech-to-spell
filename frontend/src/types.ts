@@ -6,6 +6,27 @@ export interface TranscriptionMessage {
   text: string;
 }
 
+export type EffectTemplate =
+  | "explosion"
+  | "swirl"
+  | "rain"
+  | "wave_left"
+  | "wave_right"
+  | "shatter"
+  | "pulse"
+  | "spiral"
+  | "rise";
+
+export interface VisualEffect {
+  template: EffectTemplate;
+  primary_color: string;
+  secondary_color: string;
+  particle_count: number;
+  scale: number;
+  duration_s: number;
+  emojis: string[];
+}
+
 export interface SpellResultMessage {
   type: "spell_result";
   caster: PlayerSide;
@@ -14,7 +35,7 @@ export interface SpellResultMessage {
   color: string | null;
   damage: number;
   mana_cost: number;
-  emojis: string[];
+  visual_effect: VisualEffect | null;
 }
 
 export interface GameStateMessage {
@@ -47,3 +68,11 @@ export interface AudioMessage {
   player: PlayerSide;
   audio: string; // base64
 }
+
+export interface TextSpellMessage {
+  type: "text_spell";
+  player: PlayerSide;
+  text: string;
+}
+
+export type ClientMessage = AudioMessage | TextSpellMessage;

@@ -23,14 +23,12 @@
 - Dark wizard-duel aesthetic with Tailwind
 - Per-player microphone selection (dropdown per player, device enumeration)
 
-### Ministral spell interpretation (tool calling)
-- `src/speech_to_spell/spell.py`: Ministral 8B with five tools:
-  - `name_spell(name)` — gives the spell a dramatic name
-  - `change_color(color)` — picks a CSS color matching the spell's element
-  - `evaluate_spell(damage, mana_cost)` — judges spell power (1-50 dmg, 5-40 mana)
-  - `pick_sound(sound_id)` — picks a sound from the pre-generated bank
-  - `pick_emojis(emojis)` — picks 1-3 emojis for particle burst effect
-- Tools are **not mandatory** — LLM decides which are relevant per spell
+### Spell interpretation (single tool call)
+- `src/speech_to_spell/spell.py`: single `cast_spell` tool replaces the previous 5 separate tools
+  - Previous approach (5 tools: `name_spell`, `change_color`, `evaluate_spell`, `pick_sound`, `visual_effect`) was unreliable — GPT-OSS 120B often skipped `visual_effect`, resulting in no animations
+  - Now one mandatory `cast_spell` tool with all fields flattened: `spell_name`, `damage`, `mana_cost`, `sound_id`, `emojis`, `template`, `primary_color`, `secondary_color`
+  - Visual params (`particle_count`, `scale`, `duration_s`) derived from damage automatically — LLM doesn't need to think about them
+  - `tool_choice="any"` (Mistral) / `tool_choice="auto"` (GPT-OSS) forces the LLM to always call it
 - LLM receives full game context (HP, mana, recent spells) to make balance decisions
 
 ### Sound effects — pre-generated bank
@@ -49,15 +47,6 @@
 - Frontend: animated health (red) and mana (blue) bars on each wizard panel
 - Winner banner when a player reaches 0 HP
 
-### Emoji particle burst (visual spell effects)
-- `frontend/src/components/EmojiParticles.tsx`: particle burst component
-  - LLM picks 1-3 emojis per spell via `pick_emojis` tool (free-form, no enum)
-  - 30 particles spawn on the target's panel with random positions, sizes, delays, drift, and rotation
-  - CSS `@keyframes` animation: fall from top to bottom over 2s, fade out at end
-  - Glow tint from spell color via `drop-shadow` filter
-  - Auto-cleans up after 2.5s
-- Emojis sent in `spell_result` WebSocket message and rendered on the target side
-
 ### Configurable STT provider
 - `voice.py` now supports two speech-to-text backends: **Voxtral** (Mistral) and **ElevenLabs Scribe v2**
 - Controlled by `STT_PROVIDER` env var in `.env` — set to `"voxtral"` (default) or `"elevenlabs"`
@@ -65,10 +54,23 @@
 - Voxtral keeps its existing retry logic for transient network errors
 - ElevenLabs uses the `elevenlabs` SDK (already a dependency) with `scribe_v2` model
 
+### Visual spell effects — template-based animation system
+- `SpellEffect.tsx`: template-based particle animations with 9 templates (explosion, swirl, rain, wave_left, wave_right, shatter, pulse, spiral, rise)
+- Each template generates positioned emoji particles with unique motion patterns
+- CSS keyframe animations with parameterized colors/scale/duration
+- Auto-cleanup after animation duration
+- `WizardPanel.tsx` renders `SpellEffect`, `App.tsx` tracks `visualEffect` state per player
+
+### Text spell input (testing bypass)
+- `TextSpellInput.tsx`: text input below each wizard panel for typing spells directly
+- Sends `text_spell` WebSocket message (bypasses audio capture + Voxtral STT)
+- Backend handler in `main.py`: routes typed text straight to `interpret_spell()`
+- **Temporary** — for rapid testing without microphone, will be removed later
+- Keyboard events stopped from propagating (typing doesn't trigger push-to-talk keys)
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup (replacing enum-based pick)
 - Room system (multiplayer lobby)
-- Visual spell effects (CSS animations, screen shake)
 - ElevenLabs commentator (TTS narration)
 - VAD (Silero) — currently using push-to-talk which is fine for turn-based
 
@@ -82,4 +84,8 @@ uv run uvicorn speech_to_spell.main:app --reload
 
 # Frontend (in another terminal)
 cd frontend && npm run dev
+
 ```
+
+### URLs
+- Game: http://localhost:5173

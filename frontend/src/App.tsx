@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { WizardPanel } from "./components/WizardPanel";
 import { MicSelector } from "./components/MicSelector";
+import { TextSpellInput } from "./components/TextSpellInput";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useMicrophone } from "./hooks/useMicrophone";
 import { useAudioDevices } from "./hooks/useAudioDevices";
-import type { PlayerSide, ServerMessage } from "./types";
+import type { PlayerSide, ServerMessage, VisualEffect } from "./types";
 
 const PLAYER_LEFT_KEY = "q";
 const PLAYER_RIGHT_KEY = "p";
@@ -22,8 +23,8 @@ function App() {
   const [rightSpellName, setRightSpellName] = useState<string | null>(null);
   const [leftColor, setLeftColor] = useState<string | null>(null);
   const [rightColor, setRightColor] = useState<string | null>(null);
-  const [leftEmojis, setLeftEmojis] = useState<string[]>([]);
-  const [rightEmojis, setRightEmojis] = useState<string[]>([]);
+  const [leftVisualEffect, setLeftVisualEffect] = useState<VisualEffect | null>(null);
+  const [rightVisualEffect, setRightVisualEffect] = useState<VisualEffect | null>(null);
   const [leftHealth, setLeftHealth] = useState(100);
   const [rightHealth, setRightHealth] = useState(100);
   const [leftMana, setLeftMana] = useState(100);
@@ -74,15 +75,17 @@ function App() {
       }
       if (msg.target === "left") {
         setLeftColor(msg.color);
-        if (msg.emojis?.length) {
-          setLeftEmojis(msg.emojis);
-          setTimeout(() => setLeftEmojis([]), 2500);
+        if (msg.visual_effect) {
+          setLeftVisualEffect(msg.visual_effect);
+          const cleanupMs = (msg.visual_effect.duration_s + 1) * 1000;
+          setTimeout(() => setLeftVisualEffect(null), cleanupMs);
         }
       } else {
         setRightColor(msg.color);
-        if (msg.emojis?.length) {
-          setRightEmojis(msg.emojis);
-          setTimeout(() => setRightEmojis([]), 2500);
+        if (msg.visual_effect) {
+          setRightVisualEffect(msg.visual_effect);
+          const cleanupMs = (msg.visual_effect.duration_s + 1) * 1000;
+          setTimeout(() => setRightVisualEffect(null), cleanupMs);
         }
       }
     } else if (msg.type === "game_state") {
@@ -95,6 +98,18 @@ function App() {
   }, []);
 
   const { send, connected } = useWebSocket(handleServerMessage);
+
+  const handleTextSpell = useCallback(
+    (player: PlayerSide, text: string) => {
+      if (player === "left") {
+        setLeftProcessing(true);
+      } else {
+        setRightProcessing(true);
+      }
+      send({ type: "text_spell", player, text });
+    },
+    [send],
+  );
 
   const handleRecordingComplete = useCallback(
     (audioBase64: string) => {
@@ -128,6 +143,8 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (recording) return;
+      // Don't trigger push-to-talk when typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const key = e.key.toLowerCase();
       if (key === PLAYER_LEFT_KEY) {
@@ -164,13 +181,15 @@ function App() {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-400 bg-clip-text text-transparent">
           Speech to Spell
         </h1>
-        <div className="mt-2 flex items-center justify-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
-          />
-          <span className="text-xs text-white/40">
-            {connected ? "Connected" : "Disconnected"}
-          </span>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
+            />
+            <span className="text-xs text-white/40">
+              {connected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -204,7 +223,12 @@ function App() {
               hitColor={leftColor}
               health={leftHealth}
               mana={leftMana}
-              emojis={leftEmojis}
+              visualEffect={leftVisualEffect}
+            />
+            <TextSpellInput
+              side="left"
+              onCast={handleTextSpell}
+              disabled={leftProcessing}
             />
           </div>
 
@@ -233,7 +257,12 @@ function App() {
               hitColor={rightColor}
               health={rightHealth}
               mana={rightMana}
-              emojis={rightEmojis}
+              visualEffect={rightVisualEffect}
+            />
+            <TextSpellInput
+              side="right"
+              onCast={handleTextSpell}
+              disabled={rightProcessing}
             />
           </div>
         </div>

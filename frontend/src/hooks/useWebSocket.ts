@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { ServerMessage, AudioMessage } from "../types";
+import type { ServerMessage, ClientMessage } from "../types";
 
 // Singleton AudioContext — lives outside React, immune to re-renders
 let audioCtx: AudioContext | null = null;
@@ -48,7 +48,7 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
     };
   }, []);
 
-  const send = useCallback((msg: AudioMessage) => {
+  const send = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
     }
