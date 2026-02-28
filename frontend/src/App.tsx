@@ -54,6 +54,15 @@ function App() {
         setRightTranscription(msg.text);
         setRightProcessing(false);
       }
+    } else if (msg.type === "spell_fizzle") {
+      const fizzleMsg = "Your wand does not respect you, speak louder!";
+      if (msg.player === "left") {
+        setLeftTranscription(fizzleMsg);
+        setLeftProcessing(false);
+      } else {
+        setRightTranscription(fizzleMsg);
+        setRightProcessing(false);
+      }
     } else if (msg.type === "spell_result") {
       // Spell name goes on the caster's side, color on the target's side
       if (msg.caster === "left") {

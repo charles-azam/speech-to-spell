@@ -29,11 +29,17 @@ export interface SoundEffectMessage {
   audio: string; // base64 mp3
 }
 
+export interface SpellFizzleMessage {
+  type: "spell_fizzle";
+  player: PlayerSide;
+}
+
 export type ServerMessage =
   | TranscriptionMessage
   | SpellResultMessage
   | GameStateMessage
-  | SoundEffectMessage;
+  | SoundEffectMessage
+  | SpellFizzleMessage;
 
 export interface AudioMessage {
   type: "audio";

@@ -59,8 +59,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             audio_b64 = message["audio"]
             audio_bytes = base64.b64decode(audio_b64)
 
-            if len(audio_bytes) == 0:
-                logger.warning(f"Empty audio from player {player}, skipping")
+            if len(audio_bytes) < 1000:
+                logger.warning(f"Audio too short from player {player} ({len(audio_bytes)} bytes), skipping")
+                await websocket.send_text(json.dumps({
+                    "type": "spell_fizzle",
+                    "player": player,
+                }))
                 continue
 
             if game.winner:
@@ -77,6 +81,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "player": player,
                 "text": text,
             }))
+
+            if not text.strip():
+                logger.info(f"Empty transcription for player {player}, skipping spell")
+                await websocket.send_text(json.dumps({
+                    "type": "spell_fizzle",
+                    "player": player,
+                }))
+                continue
 
             # Ministral spell interpretation with game context
             context = format_game_context(game=game, caster=player)
