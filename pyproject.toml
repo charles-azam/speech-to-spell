@@ -1,0 +1,23 @@
+[project]
+name = "speech-to-spell"
+version = "0.1.0"
+description = "Multiplayer wizard duel — cast spells by speaking them out loud"
+authors = [
+    { name = "Charles Azam", email = "azamcharles0@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.134.0",
+    "mistralai>=1.12.4",
+    "python-dotenv>=1.2.1",
+    "python-multipart>=0.0.22",
+    "uvicorn[standard]>=0.41.0",
+    "websockets>=16.0",
+]
+
+[project.scripts]
+speech-to-spell = "speech_to_spell.main:run"
+
+[build-system]
+requires = ["uv_build>=0.9.28,<0.10.0"]
+build-backend = "uv_build"

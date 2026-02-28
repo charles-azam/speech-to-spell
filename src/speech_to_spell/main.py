@@ -1,14 +1,16 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.voice import transcribe_audio
-from app.spell import interpret_spell
-from app.game import (
+from speech_to_spell.voice import transcribe_audio
+from speech_to_spell.spell import interpret_spell
+from speech_to_spell.game import (
     create_game, join_game, apply_spell, get_game,
     game_state_dict, room_connections, games,
 )
@@ -158,3 +160,13 @@ async def websocket_endpoint(ws: WebSocket, room_code: str):
                 "type": "player_disconnected",
                 "player_index": player_index,
             })
+
+
+def run():
+    import uvicorn
+    uvicorn.run(
+        "speech_to_spell.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )

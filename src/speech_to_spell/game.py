@@ -1,7 +1,7 @@
 import random
 import string
 from pydantic import BaseModel
-from app.spell import SpellResult
+from speech_to_spell.spell import SpellResult
 
 
 class Player(BaseModel):

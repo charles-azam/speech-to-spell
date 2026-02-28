@@ -1,5 +1,11 @@
+# Python
 .venv
 __pycache__
 *.pyc
+*.egg-info
+
+# Env
 .env
+
+# OS
 .DS_Store
