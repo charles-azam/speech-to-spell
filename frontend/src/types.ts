@@ -14,6 +14,7 @@ export interface SpellResultMessage {
   color: string | null;
   damage: number;
   mana_cost: number;
+  emojis: string[];
 }
 
 export interface GameStateMessage {

@@ -24,11 +24,12 @@
 - Per-player microphone selection (dropdown per player, device enumeration)
 
 ### Ministral spell interpretation (tool calling)
-- `src/speech_to_spell/spell.py`: Ministral 8B with four tools:
+- `src/speech_to_spell/spell.py`: Ministral 8B with five tools:
   - `name_spell(name)` — gives the spell a dramatic name
   - `change_color(color)` — picks a CSS color matching the spell's element
   - `evaluate_spell(damage, mana_cost)` — judges spell power (1-50 dmg, 5-40 mana)
   - `pick_sound(sound_id)` — picks a sound from the pre-generated bank
+  - `pick_emojis(emojis)` — picks 1-3 emojis for particle burst effect
 - Tools are **not mandatory** — LLM decides which are relevant per spell
 - LLM receives full game context (HP, mana, recent spells) to make balance decisions
 
@@ -48,10 +49,19 @@
 - Frontend: animated health (red) and mana (blue) bars on each wizard panel
 - Winner banner when a player reaches 0 HP
 
+### Emoji particle burst (visual spell effects)
+- `frontend/src/components/EmojiParticles.tsx`: particle burst component
+  - LLM picks 1-3 emojis per spell via `pick_emojis` tool (free-form, no enum)
+  - 30 particles spawn on the target's panel with random positions, sizes, delays, drift, and rotation
+  - CSS `@keyframes` animation: fall from top to bottom over 2s, fade out at end
+  - Glow tint from spell color via `drop-shadow` filter
+  - Auto-cleans up after 2.5s
+- Emojis sent in `spell_result` WebSocket message and rendered on the target side
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup (replacing enum-based pick)
 - Room system (multiplayer lobby)
-- Visual spell effects (emoji particles, CSS animations, screen shake)
+- Visual spell effects (CSS animations, screen shake)
 - ElevenLabs commentator (TTS narration)
 - VAD (Silero) — currently using push-to-talk which is fine for turn-based
 

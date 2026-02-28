@@ -99,7 +99,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             )
             logger.info(
                 f"Spell for player {player}: {spell.spell_name} "
-                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id})"
+                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, emojis={spell.emojis})"
             )
 
             # Apply spell to game state
@@ -114,6 +114,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "color": spell.color,
                 "damage": spell.damage,
                 "mana_cost": spell.mana_cost,
+                "emojis": spell.emojis,
             }))
 
             await send_game_state(websocket=websocket, game=game)

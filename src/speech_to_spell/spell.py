@@ -90,6 +90,26 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "pick_emojis",
+            "description": "Pick 1-3 emojis that represent this spell for a particle burst effect. E.g. 🔥 for fire, ❄️ for ice, 🐱 for cats, 💔 for emotional damage, 💀 for death, ⚡ for lightning, 🌊 for water, 🌿 for nature, 🎆 for explosions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "emojis": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3,
+                        "description": "1 to 3 emoji characters that visually represent the spell.",
+                    },
+                },
+                "required": ["emojis"],
+            },
+        },
+    },
 ]
 
 _sound_descriptions = get_sound_descriptions()
@@ -97,11 +117,12 @@ _sound_descriptions = get_sound_descriptions()
 SYSTEM_PROMPT = f"""You are the judge of a wizard duel game. A wizard just cast a spell by speaking out loud.
 You will receive the transcription of what they said and the current game state.
 
-You have 4 tools available. Call only the ones that are relevant — not every spell needs all tools:
+You have 5 tools available. Call only the ones that are relevant — not every spell needs all tools:
 - `name_spell` — give the spell a dramatic, fun name. Call this for every real spell.
 - `change_color` — set a CSS color matching the spell's element/mood. Call this for every real spell.
 - `evaluate_spell` — judge the damage and mana cost. Call this for every real spell.
 - `pick_sound` — pick a sound effect from the available bank. Call this for every real spell.
+- `pick_emojis` — pick 1-3 emojis for a particle burst on screen. Call this for every real spell.
 
 Available sounds:
 {_sound_descriptions}
@@ -123,6 +144,7 @@ class SpellResult(BaseModel):
     damage: int = 0
     mana_cost: int = 0
     sound_id: str | None = None
+    emojis: list[str] = []
 
 
 def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
@@ -159,5 +181,8 @@ def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
             sound_id = args.get("sound_id")
             if sound_id in SOUND_IDS:
                 result.sound_id = sound_id
+        elif tool_call.function.name == "pick_emojis":
+            emojis = args.get("emojis", [])
+            result.emojis = emojis[:3]
 
     return result

@@ -22,6 +22,8 @@ function App() {
   const [rightSpellName, setRightSpellName] = useState<string | null>(null);
   const [leftColor, setLeftColor] = useState<string | null>(null);
   const [rightColor, setRightColor] = useState<string | null>(null);
+  const [leftEmojis, setLeftEmojis] = useState<string[]>([]);
+  const [rightEmojis, setRightEmojis] = useState<string[]>([]);
   const [leftHealth, setLeftHealth] = useState(100);
   const [rightHealth, setRightHealth] = useState(100);
   const [leftMana, setLeftMana] = useState(100);
@@ -72,8 +74,16 @@ function App() {
       }
       if (msg.target === "left") {
         setLeftColor(msg.color);
+        if (msg.emojis?.length) {
+          setLeftEmojis(msg.emojis);
+          setTimeout(() => setLeftEmojis([]), 2500);
+        }
       } else {
         setRightColor(msg.color);
+        if (msg.emojis?.length) {
+          setRightEmojis(msg.emojis);
+          setTimeout(() => setRightEmojis([]), 2500);
+        }
       }
     } else if (msg.type === "game_state") {
       setLeftHealth(msg.left.health);
@@ -194,6 +204,7 @@ function App() {
               hitColor={leftColor}
               health={leftHealth}
               mana={leftMana}
+              emojis={leftEmojis}
             />
           </div>
 
@@ -222,6 +233,7 @@ function App() {
               hitColor={rightColor}
               health={rightHealth}
               mana={rightMana}
+              emojis={rightEmojis}
             />
           </div>
         </div>
