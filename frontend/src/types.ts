@@ -27,23 +27,26 @@ export interface VisualEffect {
   emojis: string[];
 }
 
-export interface SpellResultMessage {
-  type: "spell_result";
+export type Verdict = "YES" | "NO" | "EXPLAIN";
+
+export interface JudgeVerdictMessage {
+  type: "judge_verdict";
+  verdict: Verdict;
+  comment: string;
   caster: PlayerSide;
   target: PlayerSide;
   spell_name: string | null;
-  color: string | null;
   damage: number;
-  mana_cost: number;
   visual_effect: VisualEffect | null;
 }
 
 export interface GameStateMessage {
   type: "game_state";
-  left: { health: number; mana: number };
-  right: { health: number; mana: number };
+  left: { health: number; emoji_hand: string[] };
+  right: { health: number; emoji_hand: string[] };
   turn_number: number;
   winner: string | null;
+  current_turn: PlayerSide;
 }
 
 export interface SoundEffectMessage {
@@ -54,25 +57,37 @@ export interface SoundEffectMessage {
 export interface SpellFizzleMessage {
   type: "spell_fizzle";
   player: PlayerSide;
+  reason?: string;
 }
 
 export type ServerMessage =
   | TranscriptionMessage
-  | SpellResultMessage
+  | JudgeVerdictMessage
   | GameStateMessage
   | SoundEffectMessage
   | SpellFizzleMessage;
 
-export interface AudioMessage {
-  type: "audio";
+export interface CastSpellMessage {
+  type: "cast_spell";
   player: PlayerSide;
-  audio: string; // base64
+  selected_emojis: string[];
+  target: "attack" | "heal";
+  audio?: string; // base64
+  text?: string;
+}
+
+export interface ExplainSpellMessage {
+  type: "explain_spell";
+  audio?: string;
+  text?: string;
 }
 
 export interface TextSpellMessage {
   type: "text_spell";
   player: PlayerSide;
+  selected_emojis: string[];
+  target: "attack" | "heal";
   text: string;
 }
 
-export type ClientMessage = AudioMessage | TextSpellMessage;
+export type ClientMessage = CastSpellMessage | ExplainSpellMessage | TextSpellMessage;

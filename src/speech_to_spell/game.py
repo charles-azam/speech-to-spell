@@ -1,14 +1,45 @@
+import random
+
 from pydantic import BaseModel
 
-from speech_to_spell.spell import SpellResult
-
 MAX_HEALTH = 100
-MAX_MANA = 100
+HAND_SIZE = 10
+
+EMOJI_BANK = [
+    # Animals
+    "🐱", "🐶", "🐺", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮",
+    "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🐤", "🦅", "🦇", "🐝",
+    "🐛", "🦋", "🐌", "🐞", "🐜", "🦂", "🐍", "🦎", "🐢", "🐙",
+    "🦑", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🦈", "🐊", "🐅",
+    "🦍", "🦧", "🐘", "🦏", "🐪", "🦒", "🦘", "🐎", "🦄", "🐉",
+    # Nature & Elements
+    "🔥", "💧", "❄️", "⚡", "🌊", "🌪️", "🌋", "💨", "☀️", "🌙",
+    "⭐", "🌟", "💫", "✨", "☄️", "🌈", "☁️", "⛈️", "🌿", "🍀",
+    "🌸", "🌺", "🌻", "🌹", "🍄", "🌵", "🎋", "🍂", "🍁", "🌾",
+    # Food & Drink
+    "🍎", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍑", "🥥", "🌶️",
+    "🧄", "🧅", "🥕", "🌽", "🥦", "🍔", "🍕", "🌮", "🍣", "🍩",
+    "🎂", "🍫", "🍬", "🧁", "🍪", "🥤", "☕", "🍷", "🍺", "🧃",
+    # Objects & Tools
+    "⚔️", "🗡️", "🏹", "🛡️", "🔮", "💎", "💰", "🪙", "🧲", "🔑",
+    "🗝️", "🔒", "📿", "🧿", "🪄", "🎭", "👑", "💍", "🎩", "🧪",
+    "⚗️", "🔔", "📯", "🎺", "🥁", "🎸", "🎵", "🎶", "📖", "📜",
+    "🕯️", "🏮", "🪔", "💣", "🧨", "🎆", "🎇", "🎪", "🎲", "🃏",
+    # Fantasy & Symbols
+    "💀", "👻", "👽", "🤖", "👾", "😈", "👿", "💩", "🧙", "🧛",
+    "🧟", "🧞", "🧜", "🧚", "👼", "🦸", "🦹", "🥷", "🏴‍☠️", "⚓",
+    "🪦", "⚰️", "🔱", "⚜️", "🏺", "🗿", "🪬", "🧿", "🪶", "🐚",
+    # Hearts & Energy
+    "❤️", "🖤", "💜", "💙", "💚", "💛", "🤍", "💔", "❤️‍🔥", "💝",
+    "💗", "💖", "💞", "🫀", "🧠", "👁️", "👀", "🦴", "💪", "🤝",
+    # Space & Weather
+    "🪐", "🌍", "🌑", "🌕", "🛸", "🚀", "🌌", "🕳️",
+]
 
 
 class PlayerState(BaseModel):
     health: int = MAX_HEALTH
-    mana: int = MAX_MANA
+    emoji_hand: list[str] = []
     spells_cast: list[str] = []
 
 
@@ -17,40 +48,77 @@ class GameState(BaseModel):
     right: PlayerState = PlayerState()
     turn_number: int = 0
     winner: str | None = None
+    current_turn: str = "left"
+
+
+def deal_hand(count: int = HAND_SIZE) -> list[str]:
+    """Deal a hand of random emojis from the bank."""
+    return random.sample(EMOJI_BANK, k=min(count, len(EMOJI_BANK)))
+
+
+def create_game() -> GameState:
+    """Create a new game with hands dealt to both players."""
+    return GameState(
+        left=PlayerState(emoji_hand=deal_hand()),
+        right=PlayerState(emoji_hand=deal_hand()),
+    )
+
+
+def consume_and_refill(game: GameState, player: str, used_emojis: list[str]) -> GameState:
+    """Remove used emojis from a player's hand and refill to HAND_SIZE."""
+    player_state = game.left if player == "left" else game.right
+
+    # Remove used emojis from hand
+    remaining = list(player_state.emoji_hand)
+    for emoji in used_emojis:
+        if emoji in remaining:
+            remaining.remove(emoji)
+
+    # Refill to HAND_SIZE with new random emojis
+    needed = HAND_SIZE - len(remaining)
+    if needed > 0:
+        new_emojis = random.sample(EMOJI_BANK, k=min(needed, len(EMOJI_BANK)))
+        remaining.extend(new_emojis)
+
+    player_state.emoji_hand = remaining
+    return game
 
 
 def apply_spell(
     game: GameState,
     caster: str,
-    spell: SpellResult,
+    target: str,
+    damage: int,
+    spell_name: str | None = None,
 ) -> GameState:
-    """Apply a spell's effects to the game state. Returns updated state."""
-    caster_state = game.left if caster == "left" else game.right
-    target = "right" if caster == "left" else "left"
+    """Apply a spell's effects to the game state. Returns updated state.
+
+    If target == caster, this is a heal (capped at MAX_HEALTH).
+    If target == opponent, this is damage.
+    """
     target_state = game.left if target == "left" else game.right
+    caster_state = game.left if caster == "left" else game.right
 
-    # Deduct mana (can't go below 0)
-    actual_mana_cost = min(spell.mana_cost, caster_state.mana)
-    caster_state.mana -= actual_mana_cost
-
-    # If caster didn't have enough mana, scale damage down proportionally
-    if spell.mana_cost > 0 and actual_mana_cost < spell.mana_cost:
-        damage_ratio = actual_mana_cost / spell.mana_cost
-        actual_damage = int(spell.damage * damage_ratio)
+    if target == caster:
+        # Heal
+        target_state.health = min(MAX_HEALTH, target_state.health + damage)
     else:
-        actual_damage = spell.damage
-
-    # Apply damage
-    target_state.health = max(0, target_state.health - actual_damage)
+        # Damage
+        target_state.health = max(0, target_state.health - damage)
 
     # Track spells
-    if spell.spell_name:
-        caster_state.spells_cast.append(spell.spell_name)
+    if spell_name:
+        caster_state.spells_cast.append(spell_name)
 
     game.turn_number += 1
 
+    # Switch turn
+    game.current_turn = "right" if caster == "left" else "left"
+
     # Check win condition
-    if target_state.health <= 0:
+    opponent = "right" if caster == "left" else "left"
+    opponent_state = game.left if opponent == "left" else game.right
+    if opponent_state.health <= 0:
         game.winner = caster
 
     return game
@@ -64,12 +132,16 @@ def format_game_context(game: GameState, caster: str) -> str:
 
     lines = [
         f"Turn {game.turn_number + 1}",
-        f"Caster — HP: {caster_state.health}/{MAX_HEALTH}, Mana: {caster_state.mana}/{MAX_MANA}",
-        f"Opponent — HP: {target_state.health}/{MAX_HEALTH}, Mana: {target_state.mana}/{MAX_MANA}",
+        f"Caster — HP: {caster_state.health}/{MAX_HEALTH}",
+        f"Opponent — HP: {target_state.health}/{MAX_HEALTH}",
     ]
 
     if caster_state.spells_cast:
         recent = caster_state.spells_cast[-5:]
         lines.append(f"Caster's recent spells: {', '.join(recent)}")
+
+    if target_state.spells_cast:
+        recent = target_state.spells_cast[-5:]
+        lines.append(f"Opponent's recent spells: {', '.join(recent)}")
 
     return "\n".join(lines)

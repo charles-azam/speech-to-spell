@@ -5,16 +5,24 @@ import logging
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-from speech_to_spell.game import GameState, apply_spell, format_game_context
+from speech_to_spell.game import (
+    GameState,
+    apply_spell,
+    consume_and_refill,
+    create_game,
+    format_game_context,
+)
 from speech_to_spell.sound import load_sound
-from speech_to_spell.spell import interpret_spell
+from speech_to_spell.spell import JudgeVerdict, interpret_spell
 from speech_to_spell.voice import transcribe
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ENABLE_SOUND_EFFECTS = True
+MIN_EMOJIS = 2
 
 app = FastAPI(title="Speech to Spell")
 
@@ -27,6 +35,14 @@ app.add_middleware(
 )
 
 
+class PendingExplanation(BaseModel):
+    """Stored context when judge asks for EXPLAIN."""
+    player: str
+    selected_emojis: list[str]
+    target: str
+    transcription: str
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -35,11 +51,129 @@ def health() -> dict[str, str]:
 async def send_game_state(websocket: WebSocket, game: GameState) -> None:
     await websocket.send_text(json.dumps({
         "type": "game_state",
-        "left": {"health": game.left.health, "mana": game.left.mana},
-        "right": {"health": game.right.health, "mana": game.right.mana},
+        "left": {
+            "health": game.left.health,
+            "emoji_hand": game.left.emoji_hand,
+        },
+        "right": {
+            "health": game.right.health,
+            "emoji_hand": game.right.emoji_hand,
+        },
         "turn_number": game.turn_number,
         "winner": game.winner,
+        "current_turn": game.current_turn,
     }))
+
+
+async def send_judge_verdict(
+    websocket: WebSocket,
+    verdict: JudgeVerdict,
+    caster: str,
+    target: str,
+) -> None:
+    """Send the judge's verdict to the client."""
+    await websocket.send_text(json.dumps({
+        "type": "judge_verdict",
+        "verdict": verdict.verdict,
+        "comment": verdict.comment,
+        "caster": caster,
+        "target": target,
+        "spell_name": verdict.spell_name,
+        "damage": verdict.damage,
+        "visual_effect": verdict.visual_effect.model_dump() if verdict.visual_effect else None,
+    }))
+
+
+async def send_sound_effect(websocket: WebSocket, sound_id: str | None) -> None:
+    if ENABLE_SOUND_EFFECTS and sound_id:
+        sound_bytes = load_sound(sound_id=sound_id)
+        if sound_bytes:
+            await websocket.send_text(json.dumps({
+                "type": "sound_effect",
+                "audio": base64.b64encode(sound_bytes).decode(),
+            }))
+
+
+def validate_emojis(selected_emojis: list[str], player_hand: list[str]) -> str | None:
+    """Validate that selected emojis are in the player's hand. Returns error message or None."""
+    if len(selected_emojis) < MIN_EMOJIS:
+        return f"Tu dois choisir au moins {MIN_EMOJIS} emojis."
+
+    for emoji in selected_emojis:
+        if emoji not in player_hand:
+            return f"L'emoji {emoji} n'est pas dans ta main !"
+
+    return None
+
+
+async def process_spell(
+    websocket: WebSocket,
+    game: GameState,
+    player: str,
+    selected_emojis: list[str],
+    target_choice: str,
+    transcription: str,
+    explanation: str | None = None,
+) -> tuple[GameState, PendingExplanation | None]:
+    """Process a spell through the judge and apply results. Returns updated game + pending explanation if EXPLAIN."""
+    # Determine actual target side
+    if target_choice == "heal":
+        target = player
+    else:
+        target = "right" if player == "left" else "left"
+
+    context = format_game_context(game=game, caster=player)
+
+    verdict = await asyncio.to_thread(
+        interpret_spell,
+        selected_emojis=selected_emojis,
+        target=target_choice,
+        transcription=transcription,
+        game_context=context,
+        explanation=explanation,
+    )
+    logger.info(
+        f"Judge verdict for {player}: {verdict.verdict} — {verdict.comment} "
+        f"(spell={verdict.spell_name}, dmg={verdict.damage})"
+    )
+
+    # Send verdict to client
+    await send_judge_verdict(
+        websocket=websocket,
+        verdict=verdict,
+        caster=player,
+        target=target,
+    )
+
+    if verdict.verdict == "EXPLAIN" and explanation is None:
+        # First EXPLAIN — store context, wait for player's explanation
+        return game, PendingExplanation(
+            player=player,
+            selected_emojis=selected_emojis,
+            target=target_choice,
+            transcription=transcription,
+        )
+
+    if verdict.verdict == "YES":
+        # Apply spell effects
+        game = apply_spell(
+            game=game,
+            caster=player,
+            target=target,
+            damage=verdict.damage,
+            spell_name=verdict.spell_name,
+        )
+
+        # Send sound
+        await send_sound_effect(websocket=websocket, sound_id=verdict.sound_id)
+
+    # Consume emojis regardless of verdict (YES, NO, or EXPLAIN→final)
+    game = consume_and_refill(game=game, player=player, used_emojis=selected_emojis)
+
+    # Send updated game state
+    await send_game_state(websocket=websocket, game=game)
+
+    return game, None
 
 
 @app.websocket("/ws")
@@ -47,85 +181,143 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     logger.info("WebSocket connected")
 
-    game = GameState()
+    game = create_game()
+    pending_explanation: PendingExplanation | None = None
+
     await send_game_state(websocket=websocket, game=game)
 
     while True:
         raw = await websocket.receive_text()
         message = json.loads(raw)
+        msg_type = message["type"]
 
-        if message["type"] == "text_spell":
-            # Direct text spell — bypass STT pipeline (for testing)
+        if msg_type == "cast_spell":
             player = message["player"]
-            text = message["text"]
-
-            if not text.strip() or game.winner:
-                continue
-
-            logger.info(f"Text spell from player {player}: {text}")
-
-            await websocket.send_text(json.dumps({
-                "type": "transcription",
-                "player": player,
-                "text": text,
-            }))
-
-            context = format_game_context(game=game, caster=player)
-            spell = await asyncio.to_thread(
-                interpret_spell,
-                transcription=text,
-                game_context=context,
-            )
-            logger.info(
-                f"Spell for player {player}: {spell.spell_name} "
-                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, ve={spell.visual_effect})"
-            )
-
-            game = apply_spell(game=game, caster=player, spell=spell)
-
-            opponent = "right" if player == "left" else "left"
-            await websocket.send_text(json.dumps({
-                "type": "spell_result",
-                "caster": player,
-                "target": opponent,
-                "spell_name": spell.spell_name,
-                "color": spell.color,
-                "damage": spell.damage,
-                "mana_cost": spell.mana_cost,
-                "visual_effect": spell.visual_effect.model_dump() if spell.visual_effect else None,
-            }))
-
-            await send_game_state(websocket=websocket, game=game)
-
-            if ENABLE_SOUND_EFFECTS and spell.sound_id:
-                sound_bytes = load_sound(sound_id=spell.sound_id)
-                if sound_bytes:
-                    await websocket.send_text(json.dumps({
-                        "type": "sound_effect",
-                        "audio": base64.b64encode(sound_bytes).decode(),
-                    }))
-
-        elif message["type"] == "audio":
-            player = message["player"]
-            audio_b64 = message["audio"]
-            audio_bytes = base64.b64decode(audio_b64)
-
-            if len(audio_bytes) < 1000:
-                logger.warning(f"Audio too short from player {player} ({len(audio_bytes)} bytes), skipping")
-                await websocket.send_text(json.dumps({
-                    "type": "spell_fizzle",
-                    "player": player,
-                }))
-                continue
+            selected_emojis = message["selected_emojis"]
+            target_choice = message["target"]  # "attack" or "heal"
 
             if game.winner:
-                logger.info("Game is over, ignoring audio")
                 continue
 
-            logger.info(f"Received audio from player {player} ({len(audio_bytes)} bytes)")
+            # Validate it's this player's turn
+            if game.current_turn != player:
+                logger.warning(f"Player {player} tried to cast but it's {game.current_turn}'s turn")
+                continue
 
-            text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
-            logger.info(f"Transcription for player {player}: {text}")
+            # Validate emojis
+            player_state = game.left if player == "left" else game.right
+            error = validate_emojis(selected_emojis=selected_emojis, player_hand=player_state.emoji_hand)
+            if error:
+                await websocket.send_text(json.dumps({
+                    "type": "spell_fizzle",
+                    "player": player,
+                    "reason": error,
+                }))
+                continue
+
+            # Get transcription from audio or text
+            if "audio" in message:
+                audio_bytes = base64.b64decode(message["audio"])
+                if len(audio_bytes) < 1000:
+                    await websocket.send_text(json.dumps({
+                        "type": "spell_fizzle",
+                        "player": player,
+                        "reason": "Parle plus fort, sorcier !",
+                    }))
+                    continue
+                text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
+                await websocket.send_text(json.dumps({
+                    "type": "transcription",
+                    "player": player,
+                    "text": text,
+                }))
+                if not text.strip():
+                    await websocket.send_text(json.dumps({
+                        "type": "spell_fizzle",
+                        "player": player,
+                        "reason": "Le juge n'a rien entendu...",
+                    }))
+                    continue
+            elif "text" in message:
+                text = message["text"]
+                if not text.strip():
+                    continue
+                await websocket.send_text(json.dumps({
+                    "type": "transcription",
+                    "player": player,
+                    "text": text,
+                }))
+            else:
+                continue
+
+            logger.info(f"Spell from {player}: emojis={selected_emojis}, target={target_choice}, text={text!r}")
+
+            game, pending_explanation = await process_spell(
+                websocket=websocket,
+                game=game,
+                player=player,
+                selected_emojis=selected_emojis,
+                target_choice=target_choice,
+                transcription=text,
+            )
+
+        elif msg_type == "explain_spell":
+            if pending_explanation is None:
+                logger.warning("Received explain_spell but no pending explanation")
+                continue
+
+            player = pending_explanation.player
+
+            # Get explanation from audio or text
+            if "audio" in message:
+                audio_bytes = base64.b64decode(message["audio"])
+                explanation_text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
+                await websocket.send_text(json.dumps({
+                    "type": "transcription",
+                    "player": player,
+                    "text": explanation_text,
+                }))
+            elif "text" in message:
+                explanation_text = message["text"]
+            else:
+                explanation_text = ""
+
+            logger.info(f"Explanation from {player}: {explanation_text!r}")
+
+            # Re-evaluate with explanation — only YES or NO this time
+            game, _ = await process_spell(
+                websocket=websocket,
+                game=game,
+                player=pending_explanation.player,
+                selected_emojis=pending_explanation.selected_emojis,
+                target_choice=pending_explanation.target,
+                transcription=pending_explanation.transcription,
+                explanation=explanation_text,
+            )
+            pending_explanation = None
+
+        elif msg_type == "text_spell":
+            # Legacy text spell bypass for testing — convert to cast_spell format
+            player = message["player"]
+            text = message.get("text", "").strip()
+            selected_emojis = message.get("selected_emojis", [])
+            target_choice = message.get("target", "attack")
+
+            if not text or game.winner:
+                continue
+
+            if game.current_turn != player:
+                continue
+
+            player_state = game.left if player == "left" else game.right
+            error = validate_emojis(selected_emojis=selected_emojis, player_hand=player_state.emoji_hand)
+            if error:
+                await websocket.send_text(json.dumps({
+                    "type": "spell_fizzle",
+                    "player": player,
+                    "reason": error,
+                }))
+                continue
 
             await websocket.send_text(json.dumps({
                 "type": "transcription",
@@ -133,48 +325,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "text": text,
             }))
 
-            if not text.strip():
-                logger.info(f"Empty transcription for player {player}, skipping spell")
-                await websocket.send_text(json.dumps({
-                    "type": "spell_fizzle",
-                    "player": player,
-                }))
-                continue
-
-            # Ministral spell interpretation with game context
-            context = format_game_context(game=game, caster=player)
-            spell = await asyncio.to_thread(
-                interpret_spell,
+            game, pending_explanation = await process_spell(
+                websocket=websocket,
+                game=game,
+                player=player,
+                selected_emojis=selected_emojis,
+                target_choice=target_choice,
                 transcription=text,
-                game_context=context,
             )
-            logger.info(
-                f"Spell for player {player}: {spell.spell_name} "
-                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id}, ve={spell.visual_effect})"
-            )
-
-            # Apply spell to game state
-            game = apply_spell(game=game, caster=player, spell=spell)
-
-            opponent = "right" if player == "left" else "left"
-            await websocket.send_text(json.dumps({
-                "type": "spell_result",
-                "caster": player,
-                "target": opponent,
-                "spell_name": spell.spell_name,
-                "color": spell.color,
-                "damage": spell.damage,
-                "mana_cost": spell.mana_cost,
-                "visual_effect": spell.visual_effect.model_dump() if spell.visual_effect else None,
-            }))
-
-            await send_game_state(websocket=websocket, game=game)
-
-            # Play sound effect from pre-generated bank (instant, no API call)
-            if ENABLE_SOUND_EFFECTS and spell.sound_id:
-                sound_bytes = load_sound(sound_id=spell.sound_id)
-                if sound_bytes:
-                    await websocket.send_text(json.dumps({
-                        "type": "sound_effect",
-                        "audio": base64.b64encode(sound_bytes).decode(),
-                    }))

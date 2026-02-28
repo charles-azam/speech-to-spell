@@ -27,97 +27,133 @@ _hf_client = OpenAI(
 )
 GPT_OSS_MODEL = "openai/gpt-oss-120b:cerebras"
 
-# --- Single tool definition ---
+# --- Valid templates for visual effects ---
 
 VALID_TEMPLATES = {
     "explosion", "swirl", "rain", "wave_left", "wave_right",
     "shatter", "pulse", "spiral", "rise",
 }
 
-CAST_SPELL_TOOL = {
+# --- Judge tool definition ---
+
+JUDGE_SPELL_TOOL = {
     "type": "function",
     "function": {
-        "name": "cast_spell",
-        "description": "Judge the spell and produce all effects in a single call.",
+        "name": "judge_spell",
+        "description": (
+            "Rends ton verdict sur le sort lancé. "
+            "Si verdict=YES, remplis TOUS les champs d'effet. "
+            "Si verdict=NO ou EXPLAIN, seul comment est requis."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
+                "verdict": {
+                    "type": "string",
+                    "enum": ["YES", "NO", "EXPLAIN"],
+                    "description": (
+                        "YES = sort accepté (dégâts appliqués), "
+                        "NO = sort rejeté, "
+                        "EXPLAIN = le joueur doit justifier son sort"
+                    ),
+                },
+                "comment": {
+                    "type": "string",
+                    "description": (
+                        "Commentaire du juge en français. Drôle, théâtral, mémorable. "
+                        "Ex: 'Impressionnant, petit sorcier !', 'Même toi tu n'y crois pas...', "
+                        "'Explique-toi, mortel !'"
+                    ),
+                },
                 "spell_name": {
                     "type": "string",
-                    "description": "Dramatic spell name. E.g. 'Infernal Blaze', 'Rain of Cats'.",
+                    "description": "Nom dramatique du sort (seulement si YES).",
                 },
                 "damage": {
                     "type": "integer",
-                    "description": "Damage dealt (1-50). Creative=high, boring=low.",
-                },
-                "mana_cost": {
-                    "type": "integer",
-                    "description": "Mana cost (5-40). Creative=cheap, spam=expensive.",
+                    "description": "Dégâts ou soin (1-50). Créatif=haut, ennuyeux=bas. Seulement si YES.",
                 },
                 "sound_id": {
                     "type": "string",
                     "enum": SOUND_IDS,
-                    "description": "Sound effect to play.",
+                    "description": "Effet sonore à jouer (seulement si YES).",
                 },
                 "emojis": {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 1,
                     "maxItems": 3,
-                    "description": "1-3 emojis for the particle burst.",
+                    "description": "1-3 emojis pour l'effet visuel (seulement si YES).",
                 },
                 "template": {
                     "type": "string",
                     "enum": sorted(VALID_TEMPLATES),
-                    "description": "Animation pattern for the emoji particles.",
+                    "description": "Pattern d'animation pour les particules (seulement si YES).",
                 },
                 "primary_color": {
                     "type": "string",
-                    "description": "Main CSS color (e.g. '#ff4500').",
+                    "description": "Couleur CSS principale, ex '#ff4500' (seulement si YES).",
                 },
                 "secondary_color": {
                     "type": "string",
-                    "description": "Accent CSS color (e.g. '#ff8c00').",
+                    "description": "Couleur CSS secondaire, ex '#ff8c00' (seulement si YES).",
                 },
             },
-            "required": [
-                "spell_name", "damage", "mana_cost", "sound_id",
-                "emojis", "template", "primary_color", "secondary_color",
-            ],
+            "required": ["verdict", "comment"],
         },
     },
 }
 
-TOOLS = [CAST_SPELL_TOOL]
+TOOLS = [JUDGE_SPELL_TOOL]
 
 _sound_descriptions = get_sound_descriptions()
 
-SYSTEM_PROMPT = f"""You are the judge of a wizard duel game. A wizard just cast a spell by speaking out loud.
-You will receive the transcription of what they said and the current game state.
+SYSTEM_PROMPT = f"""Tu es LE JUGE SUPRÊME d'un duel de sorciers. Tu es théâtral, drôle, impitoyable mais juste.
 
-You MUST call the `cast_spell` tool exactly once with your judgment.
+Tu parles UNIQUEMENT en français. Tes commentaires doivent être mémorables, drôles, et varier à chaque sort.
 
-Available sounds:
+## Ton rôle
+Un sorcier lance un sort en combinant des emojis de sa main + une incantation vocale.
+Tu dois évaluer la COHÉRENCE entre les emojis choisis et l'incantation, la CRÉATIVITÉ, et l'AUDACE.
+
+## Tes verdicts
+- **YES** : Le sort est accepté ! Tu appliques les dégâts/soins. Sois généreux avec les sorts créatifs.
+- **NO** : Le sort est rejeté. Les emojis sont quand même consommés. Utilise ce verdict quand :
+  - Il n'y a AUCUN lien entre les emojis et l'incantation
+  - Le joueur spamme le même sort
+  - L'incantation est vide ou incompréhensible
+- **EXPLAIN** : Tu donnes une chance au joueur de justifier son sort. Utilise quand :
+  - Le lien est ténu mais potentiellement intéressant
+  - Tu es intrigué mais pas convaincu
+
+## Règles de dégâts (quand YES)
+- Sort créatif et cohérent : 25-50 dégâts
+- Sort correct mais classique : 10-25 dégâts
+- Sort médiocre mais accepté : 1-10 dégâts
+- Soin : mêmes règles, le joueur se soigne au lieu d'attaquer
+
+## Ton style de commentaire
+Varie tes formulations ! Exemples de styles :
+- Admiratif : "Par les anciens dieux, quelle magnificence !"
+- Moqueur : "Même toi tu n'y crois pas..."
+- Impressionné : "Attendez... c'est du GÉNIE !"
+- Dégoûté : "Mon chat aurait fait mieux, et il est mort."
+- Théâtral : "SILENCE DANS LA SALLE ! *frappe son marteau*"
+- Intrigué : "Hmm... explique-toi, mortel."
+- Blasé : "Encore ? Tu n'as vraiment pas d'imagination..."
+
+## Sons disponibles
 {_sound_descriptions}
 
-Animation templates:
-- explosion: particles burst outward from center (fire, bombs, impacts)
-- swirl: particles orbit around center (wind, vortex, magic)
-- rain: particles fall from top (rain, snow, debris)
-- wave_left: sweep left to right (push, blast, charge)
-- wave_right: sweep right to left (push, blast, charge)
-- shatter: pieces fly apart from center (breaking, destruction)
-- pulse: central glow throbs (healing, aura, power-up)
-- spiral: particles follow spiral paths outward (cosmic, mystic)
-- rise: particles float upward (fire, spirits, levitation)
-
-Balance rules:
-- Originality is rewarded: creative spells deal more damage and cost less mana
-- Repetition is penalized: if a wizard keeps casting similar spells, reduce damage and increase mana cost
-- Overpowered spam is punished: saying "I destroy everything" should cost tons of mana and deal little damage
-- Funny/weird spells get a bonus: "emotional damage" or "rain of cats" should be surprisingly effective
-- Consider the game state: if a wizard is low on mana, they can still cast weak spells
-- Pick emojis that match the spell's theme (e.g. fire=🔥, ice=❄️, cats=🐱)
+## Templates d'animation
+- explosion: particules qui explosent depuis le centre (feu, bombes, impacts)
+- swirl: particules en orbite (vent, vortex, magie)
+- rain: particules qui tombent (pluie, neige, débris)
+- wave_left/wave_right: balayage horizontal (poussée, souffle)
+- shatter: éclats qui volent (destruction, bris)
+- pulse: lueur pulsante au centre (soin, aura, power-up)
+- spiral: trajectoires en spirale (cosmique, mystique)
+- rise: particules qui montent (feu, esprits, lévitation)
 """
 
 
@@ -131,20 +167,30 @@ class VisualEffect(BaseModel):
     emojis: list[str] = []
 
 
-class SpellResult(BaseModel):
+class JudgeVerdict(BaseModel):
+    verdict: str  # YES, NO, EXPLAIN
+    comment: str
     spell_name: str | None = None
-    color: str | None = None
     damage: int = 0
-    mana_cost: int = 0
     sound_id: str | None = None
     visual_effect: VisualEffect | None = None
 
 
-def _parse_cast_spell(args: dict) -> SpellResult:
-    """Parse the single cast_spell tool call into a SpellResult."""
+def _parse_judge_tool(args: dict) -> JudgeVerdict:
+    """Parse the judge_spell tool call into a JudgeVerdict."""
+    verdict = args.get("verdict", "NO")
+    if verdict not in ("YES", "NO", "EXPLAIN"):
+        verdict = "NO"
+
+    comment = args.get("comment", "Le juge est perplexe...")
+
+    if verdict != "YES":
+        return JudgeVerdict(verdict=verdict, comment=comment)
+
+    # Parse spell effects for YES verdict
     damage = max(0, min(50, args.get("damage", 0)))
 
-    # Derive visual params from damage — the LLM doesn't need to think about these
+    # Derive visual params from damage
     particle_count = 15 + int(damage * 0.7)  # 15-50
     scale = 0.6 + damage / 50 * 1.4          # 0.6-2.0
     duration_s = 1.5 + damage / 50 * 1.5     # 1.5-3.0
@@ -157,11 +203,11 @@ def _parse_cast_spell(args: dict) -> SpellResult:
     if sound_id not in SOUND_IDS:
         sound_id = None
 
-    return SpellResult(
+    return JudgeVerdict(
+        verdict="YES",
+        comment=comment,
         spell_name=args.get("spell_name"),
-        color=args.get("primary_color", "#ff4500"),
         damage=damage,
-        mana_cost=max(0, min(40, args.get("mana_cost", 0))),
         sound_id=sound_id,
         visual_effect=VisualEffect(
             template=template,
@@ -175,33 +221,70 @@ def _parse_cast_spell(args: dict) -> SpellResult:
     )
 
 
-def _parse_tool_calls_mistral(tool_calls: list) -> SpellResult:
+def _parse_tool_calls_mistral(tool_calls: list) -> JudgeVerdict:
     """Parse tool calls from Mistral SDK response."""
     for tool_call in tool_calls:
         name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
         logger.info(f"Tool call: {name}({args})")
-        if name == "cast_spell":
-            return _parse_cast_spell(args=args)
-    return SpellResult()
+        if name == "judge_spell":
+            return _parse_judge_tool(args=args)
+    return JudgeVerdict(verdict="NO", comment="Le juge n'a pas pu rendre son verdict.")
 
 
-def _parse_tool_calls_openai(tool_calls: list) -> SpellResult:
+def _parse_tool_calls_openai(tool_calls: list) -> JudgeVerdict:
     """Parse tool calls from OpenAI SDK response."""
     for tool_call in tool_calls:
         name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
         logger.info(f"Tool call: {name}({args})")
-        if name == "cast_spell":
-            return _parse_cast_spell(args=args)
-    return SpellResult()
+        if name == "judge_spell":
+            return _parse_judge_tool(args=args)
+    return JudgeVerdict(verdict="NO", comment="Le juge n'a pas pu rendre son verdict.")
 
 
-def _interpret_mistral(transcription: str, game_context: str) -> SpellResult:
-    """Interpret spell via Mistral SDK (Ministral 8B)."""
-    user_content = f'The wizard shouted: "{transcription}"'
+def _build_user_message(
+    selected_emojis: list[str],
+    target: str,
+    transcription: str,
+    game_context: str,
+    explanation: str | None = None,
+) -> str:
+    """Build the user message for the LLM."""
+    emoji_str = " ".join(selected_emojis)
+    action = "se soigner" if target == "self" else "attaquer l'adversaire"
+
+    parts = [
+        f"Emojis choisis par le sorcier : {emoji_str}",
+        f"Intention : {action}",
+        f'Incantation : "{transcription}"',
+    ]
+
+    if explanation:
+        parts.append(f'Explication du sorcier : "{explanation}"')
+        parts.append("C'est sa DEUXIÈME chance. Tu dois rendre un verdict final : YES ou NO uniquement.")
+
     if game_context:
-        user_content += f"\n\nCurrent game state:\n{game_context}"
+        parts.append(f"\nÉtat du jeu :\n{game_context}")
+
+    return "\n".join(parts)
+
+
+def _interpret_mistral(
+    selected_emojis: list[str],
+    target: str,
+    transcription: str,
+    game_context: str,
+    explanation: str | None = None,
+) -> JudgeVerdict:
+    """Interpret spell via Mistral SDK (Ministral 8B)."""
+    user_content = _build_user_message(
+        selected_emojis=selected_emojis,
+        target=target,
+        transcription=transcription,
+        game_context=game_context,
+        explanation=explanation,
+    )
 
     response = _mistral_client.chat.complete(
         model=MINISTRAL_MODEL,
@@ -217,11 +300,21 @@ def _interpret_mistral(transcription: str, game_context: str) -> SpellResult:
     return _parse_tool_calls_mistral(tool_calls=tool_calls)
 
 
-def _interpret_gpt_oss(transcription: str, game_context: str) -> SpellResult:
+def _interpret_gpt_oss(
+    selected_emojis: list[str],
+    target: str,
+    transcription: str,
+    game_context: str,
+    explanation: str | None = None,
+) -> JudgeVerdict:
     """Interpret spell via GPT-OSS 120B on HuggingFace (OpenAI SDK)."""
-    user_content = f'The wizard shouted: "{transcription}"'
-    if game_context:
-        user_content += f"\n\nCurrent game state:\n{game_context}"
+    user_content = _build_user_message(
+        selected_emojis=selected_emojis,
+        target=target,
+        transcription=transcription,
+        game_context=game_context,
+        explanation=explanation,
+    )
 
     response = _hf_client.chat.completions.create(
         model=GPT_OSS_MODEL,
@@ -237,14 +330,32 @@ def _interpret_gpt_oss(transcription: str, game_context: str) -> SpellResult:
     return _parse_tool_calls_openai(tool_calls=tool_calls)
 
 
-def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
-    """Send transcription to LLM, parse tool calls, return spell result.
+def interpret_spell(
+    selected_emojis: list[str],
+    target: str,
+    transcription: str,
+    game_context: str = "",
+    explanation: str | None = None,
+) -> JudgeVerdict:
+    """Send spell to the judge LLM, return verdict.
 
     Routes to GPT-OSS 120B (default) or Ministral 8B based on SPELL_MODEL env var.
     """
     if SPELL_MODEL == "ministral-8b":
         logger.info(f"Using Ministral 8B for spell: {transcription!r}")
-        return _interpret_mistral(transcription=transcription, game_context=game_context)
+        return _interpret_mistral(
+            selected_emojis=selected_emojis,
+            target=target,
+            transcription=transcription,
+            game_context=game_context,
+            explanation=explanation,
+        )
 
     logger.info(f"Using GPT-OSS 120B for spell: {transcription!r}")
-    return _interpret_gpt_oss(transcription=transcription, game_context=game_context)
+    return _interpret_gpt_oss(
+        selected_emojis=selected_emojis,
+        target=target,
+        transcription=transcription,
+        game_context=game_context,
+        explanation=explanation,
+    )
