@@ -98,3 +98,7 @@ These are not decided yet but could add depth:
 - **Spell suggestions at the start**: show players a few example spells at the beginning to lower the entry barrier
 - **Spell combinations between teammates** (in team mode): two players casting complementary spells get amplified effects
 
+
+# Critical
+
+You must in a progress.md file keep track of what you achieved and the features that have been developped. You can also give context to what extend the features are polished / tested / in progress.

@@ -1,0 +1,24 @@
+{
+  "name": "speech-to-spell",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node -e \"const fs=require('fs');const p=require('path');const pub='public';fs.mkdirSync(pub,{recursive:true});['node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx','node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx','node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js','node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm','node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm'].forEach(f=>{const dest=p.join(pub,p.basename(f));if(!fs.existsSync(dest))fs.copyFileSync(f,dest)});console.log('VAD assets copied to public/')\"",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ricky0123/vad-react": "^0.0.28",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.0"
+  }
+}
