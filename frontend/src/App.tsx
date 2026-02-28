@@ -82,7 +82,8 @@ function App() {
       const blob = new Blob([audioBytes], { type: "audio/mp3" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.play().finally(() => URL.revokeObjectURL(url));
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.play();
     } else if (msg.type === "game_state") {
       setLeftHealth(msg.left.health);
       setLeftMana(msg.left.mana);
