@@ -22,6 +22,11 @@ function App() {
   const [rightSpellName, setRightSpellName] = useState<string | null>(null);
   const [leftColor, setLeftColor] = useState<string | null>(null);
   const [rightColor, setRightColor] = useState<string | null>(null);
+  const [leftHealth, setLeftHealth] = useState(100);
+  const [rightHealth, setRightHealth] = useState(100);
+  const [leftMana, setLeftMana] = useState(100);
+  const [rightMana, setRightMana] = useState(100);
+  const [winner, setWinner] = useState<string | null>(null);
   const activePlayerRef = useRef<PlayerSide | null>(null);
 
   const { devices } = useAudioDevices();
@@ -61,6 +66,12 @@ function App() {
       } else {
         setRightColor(msg.color);
       }
+    } else if (msg.type === "game_state") {
+      setLeftHealth(msg.left.health);
+      setLeftMana(msg.left.mana);
+      setRightHealth(msg.right.health);
+      setRightMana(msg.right.mana);
+      setWinner(msg.winner);
     }
   }, []);
 
@@ -144,6 +155,15 @@ function App() {
         </div>
       </header>
 
+      {/* Winner banner */}
+      {winner && (
+        <div className="text-center py-4">
+          <p className="text-3xl font-black text-yellow-400 animate-pulse">
+            {winner === "left" ? "Wizard 1" : "Wizard 2"} wins!
+          </p>
+        </div>
+      )}
+
       {/* Arena */}
       <main className="flex-1 flex items-center justify-center px-8 pb-8">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-8 w-full max-w-5xl items-stretch">
@@ -163,6 +183,8 @@ function App() {
               processing={leftProcessing}
               spellName={leftSpellName}
               hitColor={leftColor}
+              health={leftHealth}
+              mana={leftMana}
             />
           </div>
 
@@ -189,6 +211,8 @@ function App() {
               processing={rightProcessing}
               spellName={rightSpellName}
               hitColor={rightColor}
+              health={rightHealth}
+              mana={rightMana}
             />
           </div>
         </div>

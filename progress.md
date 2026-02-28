@@ -23,16 +23,24 @@
 - Dark wizard-duel aesthetic with Tailwind
 
 ### Ministral spell interpretation (tool calling)
-- `src/speech_to_spell/spell.py`: Ministral 8B with two tools:
+- `src/speech_to_spell/spell.py`: Ministral 8B with three tools:
   - `name_spell(name)` — gives the spell a dramatic name
   - `change_color(color)` — picks a CSS color matching the spell's element
-- Pipeline: Voxtral transcription → Ministral tool calls → spell name + color sent to frontend
+  - `evaluate_spell(damage, mana_cost)` — judges spell power (1-50 dmg, 5-40 mana)
+- LLM receives full game context (HP, mana, recent spells) to make balance decisions
+- Pipeline: Voxtral transcription → Ministral tool calls → spell name + color + damage/mana sent to frontend
 - Frontend applies color tint (border, glow, background) to the **target** wizard's panel
 - Spell name displayed as an overlay on the **caster**'s panel
 - Per-player microphone selection (dropdown per player, device enumeration)
 
+### Game state & mechanics
+- `src/speech_to_spell/game.py`: GameState with HP/mana per player, turn tracking, win condition
+- Mana deducted from caster; if insufficient mana, damage scales down proportionally
+- Server tracks state per WebSocket session, sends `game_state` messages after each spell
+- Frontend: animated health (red) and mana (blue) bars on each wizard panel
+- Winner banner when a player reaches 0 HP
+
 ## Not yet implemented
-- Game mechanics (health, mana, turns, damage)
 - Room system (multiplayer lobby)
 - Visual spell effects (emoji particles, CSS animations, screen shake)
 - ElevenLabs commentator

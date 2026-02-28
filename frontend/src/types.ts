@@ -1,13 +1,5 @@
 export type PlayerSide = "left" | "right";
 
-export interface PlayerState {
-  side: PlayerSide;
-  name: string;
-  key: string;
-  recording: boolean;
-  transcription: string | null;
-}
-
 export interface TranscriptionMessage {
   type: "transcription";
   player: PlayerSide;
@@ -20,9 +12,22 @@ export interface SpellResultMessage {
   target: PlayerSide;
   spell_name: string | null;
   color: string | null;
+  damage: number;
+  mana_cost: number;
 }
 
-export type ServerMessage = TranscriptionMessage | SpellResultMessage;
+export interface GameStateMessage {
+  type: "game_state";
+  left: { health: number; mana: number };
+  right: { health: number; mana: number };
+  turn_number: number;
+  winner: string | null;
+}
+
+export type ServerMessage =
+  | TranscriptionMessage
+  | SpellResultMessage
+  | GameStateMessage;
 
 export interface AudioMessage {
   type: "audio";

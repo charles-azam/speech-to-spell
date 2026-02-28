@@ -49,37 +49,64 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "evaluate_spell",
+            "description": "Judge the spell's power and mana cost. More creative/original spells deal more damage and cost less mana. Boring or repeated spells are weak and expensive.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "damage": {
+                        "type": "integer",
+                        "description": "Damage dealt to the opponent (1-50). Weak/boring spells: 1-10. Average: 10-25. Creative/powerful: 25-40. Exceptional: 40-50.",
+                    },
+                    "mana_cost": {
+                        "type": "integer",
+                        "description": "Mana consumed by the caster (5-40). Creative spells are efficient (5-15). Generic spells cost more (20-40). Spam costs maximum mana.",
+                    },
+                },
+                "required": ["damage", "mana_cost"],
+            },
+        },
+    },
 ]
 
 SYSTEM_PROMPT = """You are the judge of a wizard duel game. A wizard just cast a spell by speaking out loud.
-You will receive the transcription of what they said. Your job is to:
+You will receive the transcription of what they said and the current game state.
 
-1. Call `name_spell` to give the spell a dramatic, fun name based on what the wizard said.
-2. Call `change_color` to set a CSS color that matches the spell's element or mood — this color will tint the opponent's side of the arena.
+You MUST call ALL THREE tools:
+1. `name_spell` — give the spell a dramatic, fun name
+2. `change_color` — set a CSS color matching the spell's element/mood
+3. `evaluate_spell` — judge the damage and mana cost
 
-Always call BOTH tools. Be creative and have fun with the names. Match colors to the spell's nature:
-- Fire/explosion → reds, oranges (#ff4500, #ff6600)
-- Ice/cold → blues, cyans (#00bfff, #87ceeb)
-- Lightning/electric → yellows (#ffd700, #ffff00)
-- Nature/earth → greens (#228b22, #7cfc00)
-- Dark/shadow → purples, dark (#4b0082, #8b00ff)
-- Water → blues (#1e90ff, #4169e1)
-- Weird/funny/chaotic → pick something unexpected
+Balance rules:
+- Originality is rewarded: creative spells deal more damage and cost less mana
+- Repetition is penalized: if a wizard keeps casting similar spells, reduce damage and increase mana cost
+- Overpowered spam is punished: saying "I destroy everything" should cost tons of mana and deal little damage
+- Funny/weird spells get a bonus: "emotional damage" or "rain of cats" should be surprisingly effective
+- Consider the game state: if a wizard is low on mana, they can still cast weak spells
 """
 
 
 class SpellResult(BaseModel):
     spell_name: str | None = None
     color: str | None = None
+    damage: int = 0
+    mana_cost: int = 0
 
 
-def interpret_spell(transcription: str) -> SpellResult:
-    """Send transcription to Ministral, parse tool calls, return spell name + color."""
+def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
+    """Send transcription to Ministral, parse tool calls, return spell result."""
+    user_content = f'The wizard shouted: "{transcription}"'
+    if game_context:
+        user_content += f"\n\nCurrent game state:\n{game_context}"
+
     response = _client.chat.complete(
         model=MINISTRAL_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f'The wizard shouted: "{transcription}"'},
+            {"role": "user", "content": user_content},
         ],
         tools=TOOLS,
         tool_choice="any",
@@ -96,5 +123,8 @@ def interpret_spell(transcription: str) -> SpellResult:
             result.spell_name = args["name"]
         elif tool_call.function.name == "change_color":
             result.color = args["color"]
+        elif tool_call.function.name == "evaluate_spell":
+            result.damage = max(0, min(50, args.get("damage", 0)))
+            result.mana_cost = max(0, min(40, args.get("mana_cost", 0)))
 
     return result
