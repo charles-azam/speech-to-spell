@@ -75,19 +75,6 @@ function App() {
       } else {
         setRightColor(msg.color);
       }
-    } else if (msg.type === "sound_effect") {
-      const raw = atob(msg.audio);
-      const buf = new ArrayBuffer(raw.length);
-      const view = new Uint8Array(buf);
-      for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-      const blob = new Blob([buf], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.preload = "auto";
-      audio.oncanplaythrough = () => audio.play();
-      audio.onended = () => {
-        URL.revokeObjectURL(url);
-      };
     } else if (msg.type === "game_state") {
       setLeftHealth(msg.left.health);
       setLeftMana(msg.left.mana);
