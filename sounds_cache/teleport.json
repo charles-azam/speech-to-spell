@@ -1,0 +1,15 @@
+{
+  "id": "teleport",
+  "prompt": "Quick magical teleport whoosh with spatial distortion",
+  "description": "Spatial shift — teleport, blink, warp spells",
+  "tags": [
+    "teleport",
+    "warp",
+    "blink",
+    "space",
+    "portal"
+  ],
+  "audio_file": "teleport.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

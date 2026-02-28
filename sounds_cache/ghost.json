@@ -1,0 +1,15 @@
+{
+  "id": "ghost",
+  "prompt": "Eerie ghostly wail fading into silence with reverb",
+  "description": "Spectral presence — ghost, spirit, haunt spells",
+  "tags": [
+    "ghost",
+    "spirit",
+    "haunt",
+    "ethereal",
+    "undead"
+  ],
+  "audio_file": "ghost.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

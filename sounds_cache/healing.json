@@ -1,0 +1,15 @@
+{
+  "id": "healing",
+  "prompt": "Gentle shimmering chime with warm magical glow sound",
+  "description": "Warm restoration — heal, cure, blessing spells",
+  "tags": [
+    "heal",
+    "cure",
+    "blessing",
+    "restoration",
+    "light"
+  ],
+  "audio_file": "healing.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

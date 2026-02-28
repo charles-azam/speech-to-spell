@@ -1,0 +1,15 @@
+{
+  "id": "cosmic",
+  "prompt": "Deep space ambient drone with distant star pulses",
+  "description": "Cosmic energy — star, galaxy, void, space spells",
+  "tags": [
+    "cosmic",
+    "space",
+    "star",
+    "galaxy",
+    "void"
+  ],
+  "audio_file": "cosmic.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

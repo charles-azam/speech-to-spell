@@ -1,0 +1,15 @@
+{
+  "id": "poison",
+  "prompt": "Bubbling toxic liquid with hissing acid drip",
+  "description": "Toxic brew — poison, acid, venom spells",
+  "tags": [
+    "poison",
+    "acid",
+    "toxic",
+    "venom",
+    "corrosion"
+  ],
+  "audio_file": "poison.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

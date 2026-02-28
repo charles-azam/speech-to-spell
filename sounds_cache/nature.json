@@ -1,0 +1,16 @@
+{
+  "id": "nature",
+  "prompt": "Rustling leaves and vines growing rapidly with earthy rumble",
+  "description": "Nature burst — earth, plant, wind, healing spells",
+  "tags": [
+    "nature",
+    "earth",
+    "plant",
+    "wind",
+    "healing",
+    "water"
+  ],
+  "audio_file": "nature.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

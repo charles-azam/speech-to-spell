@@ -1,0 +1,16 @@
+{
+  "prompt": "steam hissing with tropical fruit popping",
+  "cache_key": "b785a40ef0f92a31",
+  "audio_file": "b785a40ef0f92a31.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0,
+  "created_at": "2026-02-28T14:18:03.365754+00:00",
+  "transcription": "Steam of fruit.",
+  "spell_name": "Fruitful Steam Eruption",
+  "color": "#FFD700",
+  "damage": 22,
+  "mana_cost": 12,
+  "caster": "right",
+  "turn_number": 2,
+  "game_context": "Turn 2\nCaster — HP: 80/100, Mana: 100/100\nOpponent — HP: 100/100, Mana: 85/100"
+}

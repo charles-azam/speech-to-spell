@@ -1,0 +1,15 @@
+{
+  "id": "metal_clash",
+  "prompt": "Heavy metal sword clash with ringing steel impact",
+  "description": "Steel impact — sword, armor, metal spells",
+  "tags": [
+    "metal",
+    "sword",
+    "clash",
+    "steel",
+    "blade"
+  ],
+  "audio_file": "metal_clash.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

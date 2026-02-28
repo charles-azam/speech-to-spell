@@ -1,0 +1,15 @@
+{
+  "id": "blood",
+  "prompt": "Wet visceral flesh ripping with dripping blood",
+  "description": "Blood magic — sacrifice, drain, gore spells",
+  "tags": [
+    "blood",
+    "sacrifice",
+    "drain",
+    "flesh",
+    "gore"
+  ],
+  "audio_file": "blood.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

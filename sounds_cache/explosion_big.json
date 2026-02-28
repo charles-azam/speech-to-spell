@@ -1,0 +1,15 @@
+{
+  "id": "explosion_big",
+  "prompt": "Massive bomb explosion with deep bass shockwave",
+  "description": "Devastating blast — bomb, nuke, destruction spells",
+  "tags": [
+    "bomb",
+    "explosion",
+    "blast",
+    "shockwave",
+    "destruction"
+  ],
+  "audio_file": "explosion_big.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

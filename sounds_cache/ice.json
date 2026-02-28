@@ -1,0 +1,15 @@
+{
+  "id": "ice",
+  "prompt": "Ice cracking and shattering with cold wind",
+  "description": "Ice breaking apart — frost, blizzard, cold spells",
+  "tags": [
+    "ice",
+    "frost",
+    "cold",
+    "blizzard",
+    "shatter"
+  ],
+  "audio_file": "ice.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

@@ -1,0 +1,16 @@
+{
+  "prompt": "roaring flames engulfing a wall",
+  "cache_key": "19d8b0ee4d5b740a",
+  "audio_file": "19d8b0ee4d5b740a.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0,
+  "created_at": "2026-02-28T14:07:10.916084+00:00",
+  "transcription": "Wall of Fire.",
+  "spell_name": "Scorching Barrier",
+  "color": "#ff4500",
+  "damage": 20,
+  "mana_cost": 15,
+  "caster": "left",
+  "turn_number": 1,
+  "game_context": "Turn 1\nCaster — HP: 100/100, Mana: 100/100\nOpponent — HP: 100/100, Mana: 100/100"
+}

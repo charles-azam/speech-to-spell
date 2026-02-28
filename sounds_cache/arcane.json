@@ -1,0 +1,15 @@
+{
+  "id": "arcane",
+  "prompt": "Mystical arcane energy hum with crystalline chime buildup",
+  "description": "Pure arcane energy — magic, enchantment, rune spells",
+  "tags": [
+    "arcane",
+    "magic",
+    "enchantment",
+    "rune",
+    "mystic"
+  ],
+  "audio_file": "arcane.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

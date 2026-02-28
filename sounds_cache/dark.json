@@ -1,0 +1,16 @@
+{
+  "id": "dark",
+  "prompt": "Deep ominous dark magic whoosh with reverb",
+  "description": "Dark energy surge — shadow, curse, void spells",
+  "tags": [
+    "dark",
+    "shadow",
+    "curse",
+    "void",
+    "ominous",
+    "death"
+  ],
+  "audio_file": "dark.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

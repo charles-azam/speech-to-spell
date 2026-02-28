@@ -1,0 +1,15 @@
+{
+  "id": "wind_howl",
+  "prompt": "Howling wind with gusts and eerie whistling",
+  "description": "Fierce wind — tornado, gust, air spells",
+  "tags": [
+    "wind",
+    "gust",
+    "tornado",
+    "air",
+    "howl"
+  ],
+  "audio_file": "wind_howl.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

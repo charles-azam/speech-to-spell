@@ -1,0 +1,15 @@
+{
+  "id": "fireball",
+  "prompt": "Massive fireball explosion with roaring flames",
+  "description": "A fiery explosion — fire, lava, heat spells",
+  "tags": [
+    "fire",
+    "explosion",
+    "heat",
+    "lava",
+    "flame"
+  ],
+  "audio_file": "fireball.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

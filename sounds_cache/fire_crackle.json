@@ -1,0 +1,15 @@
+{
+  "id": "fire_crackle",
+  "prompt": "Sustained crackling campfire with embers popping",
+  "description": "Burning flames — sustained fire, ember, burn spells",
+  "tags": [
+    "fire",
+    "crackle",
+    "ember",
+    "burn",
+    "smolder"
+  ],
+  "audio_file": "fire_crackle.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

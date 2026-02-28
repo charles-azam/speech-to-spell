@@ -1,0 +1,15 @@
+{
+  "id": "time",
+  "prompt": "Clock ticking slowing down then reversing with warped echoes",
+  "description": "Time manipulation — slow, reverse, chrono spells",
+  "tags": [
+    "time",
+    "clock",
+    "chrono",
+    "slow",
+    "reverse"
+  ],
+  "audio_file": "time.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

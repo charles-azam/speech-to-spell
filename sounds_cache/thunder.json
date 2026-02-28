@@ -1,0 +1,15 @@
+{
+  "id": "thunder",
+  "prompt": "Loud thunder strike with electric crackle",
+  "description": "A lightning bolt — electric, storm, shock spells",
+  "tags": [
+    "lightning",
+    "thunder",
+    "electric",
+    "storm",
+    "shock"
+  ],
+  "audio_file": "thunder.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

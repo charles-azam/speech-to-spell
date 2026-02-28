@@ -1,0 +1,15 @@
+{
+  "id": "choir",
+  "prompt": "Angelic choir singing a powerful sustained note",
+  "description": "Heavenly choir — divine, holy, celestial spells",
+  "tags": [
+    "choir",
+    "angel",
+    "divine",
+    "holy",
+    "celestial"
+  ],
+  "audio_file": "choir.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

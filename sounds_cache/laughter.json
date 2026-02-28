@@ -1,0 +1,15 @@
+{
+  "id": "laughter",
+  "prompt": "Creepy evil laughter echoing in a dark hall",
+  "description": "Sinister laughter — curse, madness, trickster spells",
+  "tags": [
+    "laughter",
+    "evil",
+    "curse",
+    "madness",
+    "trickster"
+  ],
+  "audio_file": "laughter.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

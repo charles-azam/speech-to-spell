@@ -1,0 +1,15 @@
+{
+  "id": "earthquake",
+  "prompt": "Deep rumbling earthquake with rocks crumbling",
+  "description": "Ground shaking — seismic, rock, tremor spells",
+  "tags": [
+    "earthquake",
+    "rock",
+    "ground",
+    "tremor",
+    "seismic"
+  ],
+  "audio_file": "earthquake.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

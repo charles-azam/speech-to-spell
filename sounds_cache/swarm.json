@@ -1,0 +1,15 @@
+{
+  "id": "swarm",
+  "prompt": "Buzzing insect swarm with thousands of tiny wings",
+  "description": "Insect swarm — bugs, plague, infestation spells",
+  "tags": [
+    "swarm",
+    "insects",
+    "bugs",
+    "plague",
+    "infestation"
+  ],
+  "audio_file": "swarm.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

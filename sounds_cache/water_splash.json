@@ -1,0 +1,16 @@
+{
+  "id": "water_splash",
+  "prompt": "Large water splash with dripping and wave crash",
+  "description": "Water impact — tsunami, rain, aquatic spells",
+  "tags": [
+    "water",
+    "splash",
+    "wave",
+    "ocean",
+    "rain",
+    "tsunami"
+  ],
+  "audio_file": "water_splash.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

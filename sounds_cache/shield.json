@@ -1,0 +1,15 @@
+{
+  "id": "shield",
+  "prompt": "Energy barrier activation with resonant force field hum",
+  "description": "Protective barrier — shield, ward, defense spells",
+  "tags": [
+    "shield",
+    "barrier",
+    "ward",
+    "defense",
+    "protect"
+  ],
+  "audio_file": "shield.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

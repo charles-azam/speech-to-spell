@@ -1,0 +1,15 @@
+{
+  "id": "freeze",
+  "prompt": "Sharp crystallization freeze sound with cracking ice",
+  "description": "Instant freeze — ice prison, petrify, stasis spells",
+  "tags": [
+    "freeze",
+    "crystal",
+    "stasis",
+    "petrify",
+    "immobilize"
+  ],
+  "audio_file": "freeze.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}

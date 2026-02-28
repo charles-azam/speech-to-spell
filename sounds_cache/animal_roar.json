@@ -1,0 +1,15 @@
+{
+  "id": "animal_roar",
+  "prompt": "Ferocious animal roar like a lion or dragon growl",
+  "description": "Beast roar — summon, animal, dragon spells",
+  "tags": [
+    "animal",
+    "roar",
+    "beast",
+    "dragon",
+    "summon"
+  ],
+  "audio_file": "animal_roar.mp3",
+  "audio_size_bytes": 33062,
+  "duration_seconds": 2.0
+}
