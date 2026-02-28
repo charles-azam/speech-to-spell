@@ -21,4 +21,4 @@ pour charles:
 - rajouter le VAD
 - rajouter les commentateurs, sûrement en STT
 - rajouter les sounds effects 
-- 
+- essayer de call directement voxtral tool calling to reduce latency

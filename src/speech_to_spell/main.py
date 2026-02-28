@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from speech_to_spell.game import GameState, apply_spell, format_game_context
-from speech_to_spell.sound import generate_sound_effect
+from speech_to_spell.sound import load_sound
 from speech_to_spell.spell import interpret_spell
 from speech_to_spell.voice import transcribe
 
@@ -30,19 +30,6 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-async def send_sound_effect(websocket: WebSocket, prompt: str, metadata: dict) -> None:
-    """Background task: generate sound and send it. Does not block the main loop."""
-    sound_bytes = await asyncio.to_thread(
-        generate_sound_effect,
-        prompt=prompt,
-        metadata=metadata,
-    )
-    await websocket.send_text(json.dumps({
-        "type": "sound_effect",
-        "audio": base64.b64encode(sound_bytes).decode(),
-    }))
 
 
 async def send_game_state(websocket: WebSocket, game: GameState) -> None:
@@ -100,7 +87,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             )
             logger.info(
                 f"Spell for player {player}: {spell.spell_name} "
-                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color})"
+                f"(dmg={spell.damage}, mana={spell.mana_cost}, color={spell.color}, sound={spell.sound_id})"
             )
 
             # Apply spell to game state
@@ -119,20 +106,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
             await send_game_state(websocket=websocket, game=game)
 
-            # Fire-and-forget sound generation (does not block the main loop)
-            if ENABLE_SOUND_EFFECTS and spell.sound_prompt:
-                sound_meta = {
-                    "transcription": text,
-                    "spell_name": spell.spell_name,
-                    "color": spell.color,
-                    "damage": spell.damage,
-                    "mana_cost": spell.mana_cost,
-                    "caster": player,
-                    "turn_number": game.turn_number,
-                    "game_context": context,
-                }
-                asyncio.create_task(send_sound_effect(
-                    websocket=websocket,
-                    prompt=spell.sound_prompt,
-                    metadata=sound_meta,
-                ))
+            # Play sound effect from pre-generated bank (instant, no API call)
+            if ENABLE_SOUND_EFFECTS and spell.sound_id:
+                sound_bytes = load_sound(sound_id=spell.sound_id)
+                if sound_bytes:
+                    await websocket.send_text(json.dumps({
+                        "type": "sound_effect",
+                        "audio": base64.b64encode(sound_bytes).decode(),
+                    }))

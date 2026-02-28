@@ -58,9 +58,15 @@ A weak "fire" gets emoji burst + text. A creative "volcanic sneeze from the eart
 
 ### Audio
 - **ElevenLabs TTS** for an AI commentator that narrates the match
-- **ElevenLabs API** for spell sound effects
+- **Sound effects via pre-generated bank + RAG retrieval** — real-time ElevenLabs generation is too slow (~3-5s latency). Instead, pre-generate ~200 sound effects offline, embed them with Mistral Embed, store in Qdrant, and retrieve the best match instantly at game time. Same approach can be used for images/animations.
 - The commentator sometimes signals combos or special moments with a distinct sound cue
 - No speech-to-speech, but use ElevenLabs Speech-to-Speech API if any voice transformation is needed
+
+### Asset Bank + RAG Architecture (sound effects, images, animations)
+- **Offline generation**: scripts generate assets (ElevenLabs for sounds, image gen for visuals) and save them with metadata JSON files
+- **Embedding + indexing**: Mistral Embed encodes each asset's description/tags → stored in Qdrant
+- **Runtime retrieval**: LLM spell interpretation produces a query → nearest-neighbor search in Qdrant → instant asset lookup, no generation latency
+- This scales to any asset type (sounds, sprites, animations, videos) with the same pipeline
 
 ### Multiplayer Progression (build in this order)
 1. Same computer, turn-based
