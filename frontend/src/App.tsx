@@ -66,6 +66,14 @@ function App() {
       } else {
         setRightColor(msg.color);
       }
+    } else if (msg.type === "sound_effect") {
+      const audioBytes = Uint8Array.from(atob(msg.audio), (c) =>
+        c.charCodeAt(0),
+      );
+      const blob = new Blob([audioBytes], { type: "audio/mp3" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play().finally(() => URL.revokeObjectURL(url));
     } else if (msg.type === "game_state") {
       setLeftHealth(msg.left.health);
       setLeftMana(msg.left.mana);

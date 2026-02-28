@@ -24,10 +24,16 @@ export interface GameStateMessage {
   winner: string | null;
 }
 
+export interface SoundEffectMessage {
+  type: "sound_effect";
+  audio: string; // base64 mp3
+}
+
 export type ServerMessage =
   | TranscriptionMessage
   | SpellResultMessage
-  | GameStateMessage;
+  | GameStateMessage
+  | SoundEffectMessage;
 
 export interface AudioMessage {
   type: "audio";

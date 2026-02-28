@@ -11,5 +11,8 @@ dist
 # Env
 .env
 
+# Cache
+sounds_cache
+
 # OS
 .DS_Store

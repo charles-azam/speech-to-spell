@@ -70,15 +70,35 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "play_sound",
+            "description": "Generate a short sound effect to accompany the spell. Describe the sound in a few words. Only call this when it adds to the experience — skip it for mundane or unclear spells.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Short description of the sound effect (2-8 words). E.g. 'massive fireball explosion', 'ice cracking and shattering', 'thunder strike', 'cats meowing chaotically'.",
+                    },
+                },
+                "required": ["prompt"],
+            },
+        },
+    },
 ]
 
 SYSTEM_PROMPT = """You are the judge of a wizard duel game. A wizard just cast a spell by speaking out loud.
 You will receive the transcription of what they said and the current game state.
 
-You MUST call ALL THREE tools:
-1. `name_spell` — give the spell a dramatic, fun name
-2. `change_color` — set a CSS color matching the spell's element/mood
-3. `evaluate_spell` — judge the damage and mana cost
+You have 4 tools available. Call only the ones that are relevant — not every spell needs all tools:
+- `name_spell` — give the spell a dramatic, fun name. Call this for every real spell.
+- `change_color` — set a CSS color matching the spell's element/mood. Call this for every real spell.
+- `evaluate_spell` — judge the damage and mana cost. Call this for every real spell.
+- `play_sound` — describe a short sound effect to accompany the spell. Call this when the spell is interesting enough to deserve a sound. Keep the description short and vivid (2-8 words).
+
+If the wizard said something that isn't really a spell (gibberish, silence, just talking), you can call fewer tools or skip some.
 
 Balance rules:
 - Originality is rewarded: creative spells deal more damage and cost less mana
@@ -94,6 +114,7 @@ class SpellResult(BaseModel):
     color: str | None = None
     damage: int = 0
     mana_cost: int = 0
+    sound_prompt: str | None = None
 
 
 def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
@@ -126,5 +147,7 @@ def interpret_spell(transcription: str, game_context: str = "") -> SpellResult:
         elif tool_call.function.name == "evaluate_spell":
             result.damage = max(0, min(50, args.get("damage", 0)))
             result.mana_cost = max(0, min(40, args.get("mana_cost", 0)))
+        elif tool_call.function.name == "play_sound":
+            result.sound_prompt = args["prompt"]
 
     return result

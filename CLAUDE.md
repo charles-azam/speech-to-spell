@@ -98,6 +98,8 @@ These are not decided yet but could add depth:
 - **Spell suggestions at the start**: show players a few example spells at the beginning to lower the entry barrier
 - **Spell combinations between teammates** (in team mode): two players casting complementary spells get amplified effects
 
+## Good practice
+It has to be as fast as possible. So for instance there might be multiple sound tracks like sound effect and commentator being recorded.
 
 # Critical
 

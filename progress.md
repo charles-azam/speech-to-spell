@@ -23,15 +23,23 @@
 - Dark wizard-duel aesthetic with Tailwind
 
 ### Ministral spell interpretation (tool calling)
-- `src/speech_to_spell/spell.py`: Ministral 8B with three tools:
+- `src/speech_to_spell/spell.py`: Ministral 8B with four tools:
   - `name_spell(name)` — gives the spell a dramatic name
   - `change_color(color)` — picks a CSS color matching the spell's element
   - `evaluate_spell(damage, mana_cost)` — judges spell power (1-50 dmg, 5-40 mana)
+  - `play_sound(prompt)` — describes a sound effect for ElevenLabs to generate
+- Tools are **not mandatory** — LLM decides which are relevant per spell
 - LLM receives full game context (HP, mana, recent spells) to make balance decisions
 - Pipeline: Voxtral transcription → Ministral tool calls → spell name + color + damage/mana sent to frontend
 - Frontend applies color tint (border, glow, background) to the **target** wizard's panel
 - Spell name displayed as an overlay on the **caster**'s panel
 - Per-player microphone selection (dropdown per player, device enumeration)
+
+### ElevenLabs sound effects
+- `src/speech_to_spell/sound.py`: ElevenLabs text-to-sound-effects API (v2), 2s max duration
+- **Disk cache** in `sounds_cache/` — each sound stored as `{hash}.mp3` to avoid repeat API calls
+- **Metadata files** (`{hash}.json`) saved alongside each sound with full context (transcription, spell name, color, damage, mana cost, game state, timestamp) for future RAG
+- Sound sent as base64 MP3 via WebSocket, played in browser with Web Audio API
 
 ### Game state & mechanics
 - `src/speech_to_spell/game.py`: GameState with HP/mana per player, turn tracking, win condition
@@ -43,8 +51,7 @@
 ## Not yet implemented
 - Room system (multiplayer lobby)
 - Visual spell effects (emoji particles, CSS animations, screen shake)
-- ElevenLabs commentator
-- Sound effects
+- ElevenLabs commentator (TTS narration)
 - VAD (Silero) — currently using push-to-talk which is fine for turn-based
 
 ## How to run

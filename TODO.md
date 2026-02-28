@@ -15,4 +15,10 @@ Utiliser le mistral python SDK
 Dans les bonus techniques:
 - rag sur un dataset d'images / gifs (trouver le dataset)
 - à partir de ce qui est déjà fait rajouter la pipeline qui évalue le ton
+
+
+pour charles:
+- rajouter le VAD
+- rajouter les commentateurs, sûrement en STT
+- rajouter les sounds effects 
 - 
