@@ -1,30 +1,27 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 
-export function useMicrophone(onRecordingComplete: (audioBase64: string) => void) {
+export function useMicrophone(
+  onRecordingComplete: (audioBase64: string) => void,
+) {
   const [recording, setRecording] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const onCompleteRef = useRef(onRecordingComplete);
   onCompleteRef.current = onRecordingComplete;
 
-  const requestPermission = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = stream;
-    setPermissionGranted(true);
-    return stream;
-  }, []);
-
-  useEffect(() => {
-    requestPermission();
-  }, [requestPermission]);
-
-  const startRecording = useCallback(async () => {
-    let stream = streamRef.current;
-    if (!stream) {
-      stream = await requestPermission();
+  const startRecording = useCallback(async (deviceId?: string) => {
+    // Stop any previous stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
     }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: deviceId
+        ? { deviceId: { exact: deviceId } }
+        : true,
+    });
+    streamRef.current = stream;
 
     chunksRef.current = [];
     const mediaRecorder = new MediaRecorder(stream, {
@@ -39,11 +36,11 @@ export function useMicrophone(onRecordingComplete: (audioBase64: string) => void
     };
 
     mediaRecorder.onstop = () => {
+      stream.getTracks().forEach((track) => track.stop());
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        // Strip the data URL prefix to get pure base64
         const base64 = result.split(",")[1];
         onCompleteRef.current(base64);
       };
@@ -52,7 +49,7 @@ export function useMicrophone(onRecordingComplete: (audioBase64: string) => void
 
     mediaRecorder.start();
     setRecording(true);
-  }, [requestPermission]);
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -61,5 +58,5 @@ export function useMicrophone(onRecordingComplete: (audioBase64: string) => void
     }
   }, []);
 
-  return { recording, permissionGranted, startRecording, stopRecording };
+  return { recording, startRecording, stopRecording };
 }

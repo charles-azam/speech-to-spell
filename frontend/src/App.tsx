@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { WizardPanel } from "./components/WizardPanel";
+import { MicSelector } from "./components/MicSelector";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useMicrophone } from "./hooks/useMicrophone";
+import { useAudioDevices } from "./hooks/useAudioDevices";
 import type { PlayerSide, TranscriptionMessage } from "./types";
 
 const PLAYER_LEFT_KEY = "q";
@@ -17,6 +19,22 @@ function App() {
   const [leftProcessing, setLeftProcessing] = useState(false);
   const [rightProcessing, setRightProcessing] = useState(false);
   const activePlayerRef = useRef<PlayerSide | null>(null);
+
+  const { devices } = useAudioDevices();
+  const [leftDeviceId, setLeftDeviceId] = useState("");
+  const [rightDeviceId, setRightDeviceId] = useState("");
+
+  // Auto-select first device when devices load
+  useEffect(() => {
+    if (devices.length > 0 && !leftDeviceId) {
+      setLeftDeviceId(devices[0].deviceId);
+    }
+    if (devices.length > 1 && !rightDeviceId) {
+      setRightDeviceId(devices[1].deviceId);
+    } else if (devices.length > 0 && !rightDeviceId) {
+      setRightDeviceId(devices[0].deviceId);
+    }
+  }, [devices, leftDeviceId, rightDeviceId]);
 
   const handleServerMessage = useCallback((msg: TranscriptionMessage) => {
     if (msg.type === "transcription") {
@@ -57,22 +75,21 @@ function App() {
     handleRecordingComplete,
   );
 
-  // Determine which player is recording
   const leftRecording = recording && activePlayerRef.current === "left";
   const rightRecording = recording && activePlayerRef.current === "right";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (recording) return; // only one player at a time
+      if (recording) return;
 
       const key = e.key.toLowerCase();
       if (key === PLAYER_LEFT_KEY) {
         activePlayerRef.current = "left";
-        startRecording();
+        startRecording(leftDeviceId || undefined);
       } else if (key === PLAYER_RIGHT_KEY) {
         activePlayerRef.current = "right";
-        startRecording();
+        startRecording(rightDeviceId || undefined);
       }
     };
 
@@ -92,7 +109,7 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [recording, startRecording, stopRecording]);
+  }, [recording, startRecording, stopRecording, leftDeviceId, rightDeviceId]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -115,14 +132,21 @@ function App() {
       <main className="flex-1 flex items-center justify-center px-8 pb-8">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-8 w-full max-w-5xl items-stretch">
           {/* Player 1 */}
-          <WizardPanel
-            side="left"
-            name="Wizard 1"
-            keyBind={PLAYER_LEFT_KEY}
-            recording={leftRecording}
-            transcription={leftTranscription}
-            processing={leftProcessing}
-          />
+          <div className="flex flex-col gap-3">
+            <MicSelector
+              devices={devices}
+              value={leftDeviceId}
+              onChange={setLeftDeviceId}
+            />
+            <WizardPanel
+              side="left"
+              name="Wizard 1"
+              keyBind={PLAYER_LEFT_KEY}
+              recording={leftRecording}
+              transcription={leftTranscription}
+              processing={leftProcessing}
+            />
+          </div>
 
           {/* VS divider */}
           <div className="flex items-center">
@@ -132,14 +156,21 @@ function App() {
           </div>
 
           {/* Player 2 */}
-          <WizardPanel
-            side="right"
-            name="Wizard 2"
-            keyBind={PLAYER_RIGHT_KEY}
-            recording={rightRecording}
-            transcription={rightTranscription}
-            processing={rightProcessing}
-          />
+          <div className="flex flex-col gap-3">
+            <MicSelector
+              devices={devices}
+              value={rightDeviceId}
+              onChange={setRightDeviceId}
+            />
+            <WizardPanel
+              side="right"
+              name="Wizard 2"
+              keyBind={PLAYER_RIGHT_KEY}
+              recording={rightRecording}
+              transcription={rightTranscription}
+              processing={rightProcessing}
+            />
+          </div>
         </div>
       </main>
     </div>
