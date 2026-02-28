@@ -46,7 +46,6 @@ export interface GameStateMessage {
   right: { health: number; emoji_hand: string[] };
   turn_number: number;
   winner: string | null;
-  current_turn: PlayerSide;
 }
 
 export interface SoundEffectMessage {

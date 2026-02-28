@@ -48,7 +48,6 @@ class GameState(BaseModel):
     right: PlayerState = PlayerState()
     turn_number: int = 0
     winner: str | None = None
-    current_turn: str = "left"
 
 
 def deal_hand(count: int = HAND_SIZE) -> list[str]:
@@ -111,9 +110,6 @@ def apply_spell(
         caster_state.spells_cast.append(spell_name)
 
     game.turn_number += 1
-
-    # Switch turn
-    game.current_turn = "right" if caster == "left" else "left"
 
     # Check win condition
     opponent = "right" if caster == "left" else "left"

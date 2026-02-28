@@ -5,8 +5,10 @@ import { TargetSelector } from "./components/TargetSelector";
 import { JudgePanel } from "./components/JudgePanel";
 import { AmbientSparkles } from "./components/AmbientSparkles";
 import { TextSpellInput } from "./components/TextSpellInput";
+import { MicSelector } from "./components/MicSelector";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useMicrophone } from "./hooks/useMicrophone";
+import { useAudioDevices } from "./hooks/useAudioDevices";
 import type {
   PlayerSide,
   ServerMessage,
@@ -14,28 +16,27 @@ import type {
   Verdict,
 } from "./types";
 
-type TurnPhase =
-  | "select_emojis"
-  | "record_spell"
-  | "waiting_judge"
-  | "explain"
-  | "record_explain"
-  | "waiting_judge_explain"
-  | "result";
-
 function App() {
   // Game state from server
   const [leftHealth, setLeftHealth] = useState(100);
   const [rightHealth, setRightHealth] = useState(100);
   const [leftHand, setLeftHand] = useState<string[]>([]);
   const [rightHand, setRightHand] = useState<string[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<PlayerSide>("left");
   const [winner, setWinner] = useState<string | null>(null);
 
-  // Turn state machine
-  const [turnPhase, setTurnPhase] = useState<TurnPhase>("select_emojis");
-  const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
-  const [target, setTarget] = useState<"attack" | "heal">("attack");
+  // Per-player independent selection state
+  const [leftSelectedEmojis, setLeftSelectedEmojis] = useState<string[]>([]);
+  const [rightSelectedEmojis, setRightSelectedEmojis] = useState<string[]>([]);
+  const [leftTarget, setLeftTarget] = useState<"attack" | "heal">("attack");
+  const [rightTarget, setRightTarget] = useState<"attack" | "heal">("attack");
+
+  // Per-player mic device
+  const { devices } = useAudioDevices();
+  const [leftDeviceId, setLeftDeviceId] = useState("");
+  const [rightDeviceId, setRightDeviceId] = useState("");
+
+  // Per-player explain phase tracking
+  const explainPlayerRef = useRef<PlayerSide | null>(null);
 
   // Transcriptions
   const [leftTranscription, setLeftTranscription] = useState<string | null>(null);
@@ -57,11 +58,26 @@ function App() {
   const [judgeSpellName, setJudgeSpellName] = useState<string | null>(null);
   const [judgeDamage, setJudgeDamage] = useState<number | null>(null);
 
-  // Processing state
+  // Processing state (waiting for transcription)
   const [leftProcessing, setLeftProcessing] = useState(false);
   const [rightProcessing, setRightProcessing] = useState(false);
 
-  const isExplainPhaseRef = useRef(false);
+  // Push-to-talk: track which player is currently recording
+  const activePlayerRef = useRef<PlayerSide | null>(null);
+
+  // Refs for latest state (needed in callbacks)
+  const leftSelectedEmojisRef = useRef(leftSelectedEmojis);
+  leftSelectedEmojisRef.current = leftSelectedEmojis;
+  const rightSelectedEmojisRef = useRef(rightSelectedEmojis);
+  rightSelectedEmojisRef.current = rightSelectedEmojis;
+  const leftTargetRef = useRef(leftTarget);
+  leftTargetRef.current = leftTarget;
+  const rightTargetRef = useRef(rightTarget);
+  rightTargetRef.current = rightTarget;
+  const leftDeviceIdRef = useRef(leftDeviceId);
+  leftDeviceIdRef.current = leftDeviceId;
+  const rightDeviceIdRef = useRef(rightDeviceId);
+  rightDeviceIdRef.current = rightDeviceId;
 
   const handleServerMessage = useCallback((msg: ServerMessage) => {
     if (msg.type === "transcription") {
@@ -81,7 +97,6 @@ function App() {
         setRightTranscription(fizzleMsg);
         setRightProcessing(false);
       }
-      setTurnPhase("select_emojis");
       setJudgeWaiting(false);
     } else if (msg.type === "judge_verdict") {
       setJudgeWaiting(false);
@@ -123,18 +138,23 @@ function App() {
         }
       }
 
-      if (msg.verdict === "EXPLAIN" && !isExplainPhaseRef.current) {
-        isExplainPhaseRef.current = true;
-        setTurnPhase("explain");
+      if (msg.verdict === "EXPLAIN" && explainPlayerRef.current === null) {
+        // Store which player needs to explain
+        explainPlayerRef.current = msg.caster;
       } else {
-        isExplainPhaseRef.current = false;
-        setTurnPhase("result");
+        // Verdict resolved — clear that player's selected emojis
+        const caster = msg.caster;
+        explainPlayerRef.current = null;
         setTimeout(() => {
-          setTurnPhase("select_emojis");
-          setSelectedEmojis([]);
-          setTarget("attack");
-          setLeftTranscription(null);
-          setRightTranscription(null);
+          if (caster === "left") {
+            setLeftSelectedEmojis([]);
+            setLeftTarget("attack");
+            setLeftTranscription(null);
+          } else {
+            setRightSelectedEmojis([]);
+            setRightTarget("attack");
+            setRightTranscription(null);
+          }
         }, 4000);
       }
     } else if (msg.type === "game_state") {
@@ -142,25 +162,29 @@ function App() {
       setRightHealth(msg.right.health);
       setLeftHand(msg.left.emoji_hand);
       setRightHand(msg.right.emoji_hand);
-      setCurrentTurn(msg.current_turn);
       setWinner(msg.winner);
     }
   }, []);
 
   const { send, connected } = useWebSocket(handleServerMessage);
+  const sendRef = useRef(send);
+  sendRef.current = send;
 
   const handleRecordingComplete = useCallback(
     (audioBase64: string) => {
-      const player = currentTurn;
+      const player = activePlayerRef.current;
+      if (!player) return;
+
       if (player === "left") setLeftProcessing(true);
       else setRightProcessing(true);
 
-      if (isExplainPhaseRef.current && turnPhase === "record_explain") {
-        send({ type: "explain_spell", audio: audioBase64 });
-        setTurnPhase("waiting_judge_explain");
+      if (explainPlayerRef.current === player) {
+        // This player is in EXPLAIN phase — send explanation
+        sendRef.current({ type: "explain_spell", audio: audioBase64 });
       } else {
-        send({ type: "cast_spell", player, selected_emojis: selectedEmojis, target, audio: audioBase64 });
-        setTurnPhase("waiting_judge");
+        const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
+        const target = player === "left" ? leftTargetRef.current : rightTargetRef.current;
+        sendRef.current({ type: "cast_spell", player, selected_emojis: emojis, target, audio: audioBase64 });
       }
       setJudgeWaiting(true);
       setJudgeVerdict(null);
@@ -168,23 +192,22 @@ function App() {
       setJudgeSpellName(null);
       setJudgeDamage(null);
     },
-    [send, currentTurn, selectedEmojis, target, turnPhase],
+    [],
   );
 
   const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
 
   const handleTextSpell = useCallback(
     (player: PlayerSide, text: string) => {
-      if (player !== currentTurn) return;
       if (player === "left") setLeftProcessing(true);
       else setRightProcessing(true);
 
-      if (isExplainPhaseRef.current && turnPhase === "explain") {
+      if (explainPlayerRef.current === player) {
         send({ type: "explain_spell", text });
-        setTurnPhase("waiting_judge_explain");
       } else {
-        send({ type: "text_spell", player, selected_emojis: selectedEmojis, target, text });
-        setTurnPhase("waiting_judge");
+        const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
+        const target = player === "left" ? leftTargetRef.current : rightTargetRef.current;
+        send({ type: "text_spell", player, selected_emojis: emojis, target, text });
       }
       setJudgeWaiting(true);
       setJudgeVerdict(null);
@@ -192,142 +215,112 @@ function App() {
       setJudgeSpellName(null);
       setJudgeDamage(null);
     },
-    [send, currentTurn, selectedEmojis, target, turnPhase],
+    [send],
   );
 
-  const handleEmojiToggle = useCallback((emoji: string) => {
-    setSelectedEmojis((prev) =>
+  const handleLeftEmojiToggle = useCallback((emoji: string) => {
+    setLeftSelectedEmojis((prev) =>
       prev.includes(emoji) ? prev.filter((e) => e !== emoji) : [...prev, emoji],
     );
   }, []);
 
-  const canCast = selectedEmojis.length >= 2 && turnPhase === "select_emojis" && !winner;
+  const handleRightEmojiToggle = useCallback((emoji: string) => {
+    setRightSelectedEmojis((prev) =>
+      prev.includes(emoji) ? prev.filter((e) => e !== emoji) : [...prev, emoji],
+    );
+  }, []);
 
-  const handleCastClick = useCallback(() => {
-    if (!canCast) return;
-    setTurnPhase("record_spell");
-  }, [canCast]);
+  // Push-to-talk: Q for left, P for right
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if typing in an input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (winner) return;
+      if (recording) return; // Already recording
 
-  const handleRecordClick = useCallback(() => {
-    if (recording) stopRecording();
-    else startRecording();
-  }, [recording, startRecording, stopRecording]);
+      const key = e.key.toLowerCase();
+      if (key === "q") {
+        e.preventDefault();
+        activePlayerRef.current = "left";
+        startRecording(leftDeviceIdRef.current || undefined);
+      } else if (key === "p") {
+        e.preventDefault();
+        activePlayerRef.current = "right";
+        startRecording(rightDeviceIdRef.current || undefined);
+      }
+    };
 
-  const handleExplainRecordClick = useCallback(() => {
-    if (recording) {
-      stopRecording();
-    } else {
-      setTurnPhase("record_explain");
-      startRecording();
-    }
-  }, [recording, startRecording, stopRecording]);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (
+        (key === "q" && activePlayerRef.current === "left") ||
+        (key === "p" && activePlayerRef.current === "right")
+      ) {
+        e.preventDefault();
+        stopRecording();
+      }
+    };
 
-  useEffect(() => { /* turnPhase watcher — no-op, judge timeout handles reset */ }, [turnPhase]);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [recording, winner, startRecording, stopRecording]);
 
-  const isSelectPhase = turnPhase === "select_emojis" && !winner;
-  const isRecordPhase = turnPhase === "record_spell" || turnPhase === "record_explain";
-  const isExplainPhase = turnPhase === "explain";
-  const isWaiting = turnPhase === "waiting_judge" || turnPhase === "waiting_judge_explain";
-
-  // Active player's controls
+  // Controls for each player — always visible
   const renderControls = (side: PlayerSide) => {
-    if (currentTurn !== side || winner) return null;
+    if (winner) return null;
 
     const hand = side === "left" ? leftHand : rightHand;
+    const selectedEmojis = side === "left" ? leftSelectedEmojis : rightSelectedEmojis;
+    const target = side === "left" ? leftTarget : rightTarget;
+    const onToggle = side === "left" ? handleLeftEmojiToggle : handleRightEmojiToggle;
+    const onTargetSelect = side === "left" ? setLeftTarget : setRightTarget;
+    const isExplaining = explainPlayerRef.current === side;
+    const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
+    const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
 
     return (
       <div className="flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        {/* Mic selector */}
+        {devices.length > 1 && (
+          <MicSelector
+            devices={devices}
+            value={deviceId}
+            onChange={onDeviceChange}
+          />
+        )}
+
         <EmojiHand
           emojis={hand}
           selectedEmojis={selectedEmojis}
-          onToggle={handleEmojiToggle}
-          disabled={!isSelectPhase}
+          onToggle={onToggle}
+          disabled={false}
         />
         <TargetSelector
           target={target}
-          onSelect={setTarget}
-          disabled={!isSelectPhase}
+          onSelect={onTargetSelect}
+          disabled={false}
         />
 
-        {/* Cast button */}
-        {isSelectPhase && (
-          <button
-            onClick={handleCastClick}
-            disabled={!canCast}
-            className="btn-arcane w-full py-3 text-center"
-            style={{
-              borderRadius: "4px",
-              fontSize: "1.15rem",
-              background: canCast
-                ? "linear-gradient(180deg, rgba(201, 168, 76, 0.18) 0%, rgba(201, 168, 76, 0.05) 100%)"
-                : undefined,
-              boxShadow: canCast
-                ? "0 0 25px rgba(201, 168, 76, 0.2), inset 0 0 20px rgba(201, 168, 76, 0.05)"
-                : undefined,
-            }}
-          >
-            Lancer le Sort
-          </button>
-        )}
-
-        {/* Record button */}
-        {isRecordPhase && (
-          <button
-            onClick={handleRecordClick}
-            className={`w-full py-3 transition-all duration-200 ${recording ? "animate-record-pulse" : ""}`}
-            style={{
-              fontFamily: "'MedievalSharp', cursive",
-              fontSize: "1.1rem",
-              letterSpacing: "0.05em",
-              background: recording
-                ? "linear-gradient(180deg, rgba(198, 40, 40, 0.3) 0%, rgba(198, 40, 40, 0.1) 100%)"
-                : "linear-gradient(180deg, rgba(198, 40, 40, 0.15) 0%, rgba(198, 40, 40, 0.05) 100%)",
-              border: `1px solid ${recording ? "var(--crimson)" : "rgba(198, 40, 40, 0.4)"}`,
-              color: recording ? "#ef5350" : "#e57373",
-              borderRadius: "4px",
-              boxShadow: recording
-                ? "0 0 30px var(--crimson-glow)"
-                : "0 0 15px rgba(198, 40, 40, 0.15)",
-            }}
-          >
-            {recording ? "Relacher pour envoyer" : "Maintenir pour incanter"}
-          </button>
-        )}
-
         {/* Explain prompt */}
-        {isExplainPhase && (
-          <div className="flex flex-col gap-2">
-            <p
-              className="text-sm text-center"
-              style={{ fontFamily: "'Crimson Pro', serif", fontStyle: "italic", color: "var(--amber-warn)" }}
-            >
-              Le juge veut une explication ! Justifie ton sort.
-            </p>
-            <button
-              onClick={handleExplainRecordClick}
-              className={`w-full py-3 transition-all duration-200 ${recording ? "animate-record-pulse" : ""}`}
-              style={{
-                fontFamily: "'MedievalSharp', cursive",
-                fontSize: "1.1rem",
-                letterSpacing: "0.05em",
-                background: recording
-                  ? "linear-gradient(180deg, rgba(217, 119, 6, 0.3) 0%, rgba(217, 119, 6, 0.1) 100%)"
-                  : "linear-gradient(180deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.05) 100%)",
-                border: `1px solid ${recording ? "var(--amber-warn)" : "rgba(217, 119, 6, 0.4)"}`,
-                color: recording ? "#ffa726" : "#ffb74d",
-                borderRadius: "4px",
-              }}
-            >
-              {recording ? "Relacher pour envoyer" : "Expliquer"}
-            </button>
-          </div>
+        {isExplaining && (
+          <p
+            className="text-sm text-center"
+            style={{ fontFamily: "'Crimson Pro', serif", fontStyle: "italic", color: "var(--amber-warn)" }}
+          >
+            Le juge veut une explication ! Maintiens [{side === "left" ? "Q" : "P"}] pour justifier ton sort.
+          </p>
         )}
 
         {/* Text input */}
         <TextSpellInput
           side={side}
           onCast={handleTextSpell}
-          disabled={!(isSelectPhase || isExplainPhase) || selectedEmojis.length < 2}
+          disabled={selectedEmojis.length < 2 && !isExplaining}
         />
       </div>
     );
@@ -393,8 +386,8 @@ function App() {
             <WizardPanel
               side="left"
               name="Wizard 1"
-              isActive={currentTurn === "left" && !winner}
-              recording={recording && currentTurn === "left"}
+              keyBind="Q"
+              recording={recording && activePlayerRef.current === "left"}
               transcription={leftTranscription}
               processing={leftProcessing}
               spellName={leftSpellName}
@@ -409,7 +402,7 @@ function App() {
           <JudgePanel
             verdict={judgeVerdict}
             comment={judgeComment}
-            waiting={judgeWaiting || isWaiting}
+            waiting={judgeWaiting}
             spellName={judgeSpellName}
             damage={judgeDamage}
           />
@@ -419,8 +412,8 @@ function App() {
             <WizardPanel
               side="right"
               name="Wizard 2"
-              isActive={currentTurn === "right" && !winner}
-              recording={recording && currentTurn === "right"}
+              keyBind="P"
+              recording={recording && activePlayerRef.current === "right"}
               transcription={rightTranscription}
               processing={rightProcessing}
               spellName={rightSpellName}

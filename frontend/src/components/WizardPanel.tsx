@@ -4,7 +4,7 @@ import type { PlayerSide, VisualEffect } from "../types";
 interface WizardPanelProps {
   side: PlayerSide;
   name: string;
-  isActive: boolean;
+  keyBind: string;
   recording: boolean;
   transcription: string | null;
   processing: boolean;
@@ -75,7 +75,7 @@ function HealthBar({ value, max }: { value: number; max: number }) {
 export function WizardPanel({
   side,
   name,
-  isActive,
+  keyBind,
   recording,
   transcription,
   processing,
@@ -88,24 +88,16 @@ export function WizardPanel({
 
   return (
     <div
-      className={`
-        ornate-card ornate-card-bottom relative flex flex-col items-center justify-between
-        p-6 transition-all duration-500 min-h-[340px]
-        ${isActive ? "animate-turn-glow" : ""}
-      `}
+      className="ornate-card ornate-card-bottom relative flex flex-col items-center justify-between p-6 transition-all duration-500 min-h-[340px]"
       style={{
-        borderColor: hitColor ?? (isActive ? "var(--border-active)" : "var(--border-subtle)"),
+        borderColor: hitColor ?? "var(--border-active)",
         backgroundColor: hitColor
           ? `color-mix(in srgb, ${hitColor} 10%, var(--bg-card))`
           : "var(--bg-card)",
         boxShadow: hitColor
           ? `0 0 50px ${hitColor}33, inset 0 0 40px ${hitColor}11`
-          : isActive
-            ? undefined
-            : "none",
-        opacity: isActive ? 1 : 0.5,
-        filter: isActive ? "none" : "saturate(0.5)",
-        transition: "all 0.5s ease, opacity 0.5s ease, filter 0.5s ease",
+          : undefined,
+        transition: "all 0.5s ease",
       }}
     >
       {/* Spell name overlay */}
@@ -135,7 +127,7 @@ export function WizardPanel({
         <div
           className={`text-7xl select-none transition-all duration-300 ${recording ? "animate-bounce" : ""}`}
           style={{
-            filter: isActive ? "drop-shadow(0 0 12px rgba(201, 168, 76, 0.3))" : "none",
+            filter: "drop-shadow(0 0 12px rgba(201, 168, 76, 0.3))",
           }}
         >
           {isLeft ? "\u{1F9D9}" : "\u{1F9D9}\u200D\u2640\uFE0F"}
@@ -146,21 +138,12 @@ export function WizardPanel({
         >
           {name}
         </h2>
-        {isActive ? (
-          <span
-            className="text-xs uppercase tracking-[0.25em]"
-            style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold)" }}
-          >
-            A ton tour !
-          </span>
-        ) : (
-          <span
-            className="text-xs uppercase tracking-[0.25em]"
-            style={{ color: "var(--text-dim)" }}
-          >
-            En attente...
-          </span>
-        )}
+        <span
+          className="text-xs uppercase tracking-[0.25em]"
+          style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold)" }}
+        >
+          Maintenir [{keyBind}] pour incanter
+        </span>
       </div>
 
       {/* Health bar */}

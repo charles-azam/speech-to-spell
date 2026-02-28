@@ -61,7 +61,6 @@ async def send_game_state(websocket: WebSocket, game: GameState) -> None:
         },
         "turn_number": game.turn_number,
         "winner": game.winner,
-        "current_turn": game.current_turn,
     }))
 
 
@@ -199,11 +198,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             if game.winner:
                 continue
 
-            # Validate it's this player's turn
-            if game.current_turn != player:
-                logger.warning(f"Player {player} tried to cast but it's {game.current_turn}'s turn")
-                continue
-
             # Validate emojis
             player_state = game.left if player == "left" else game.right
             error = validate_emojis(selected_emojis=selected_emojis, player_hand=player_state.emoji_hand)
@@ -304,9 +298,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             target_choice = message.get("target", "attack")
 
             if not text or game.winner:
-                continue
-
-            if game.current_turn != player:
                 continue
 
             player_state = game.left if player == "left" else game.right

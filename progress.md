@@ -19,7 +19,7 @@
 - `consume_and_refill()`: removes used emojis, instantly refills to 10 — no scarcity, emojis are a creative tool
 - `create_game()`: factory function that deals hands on creation
 - `PlayerState` now has `emoji_hand: list[str]`, no more mana
-- `GameState` tracks `current_turn` for turn-based play
+- `GameState` tracks game state (no turn enforcement — free-form casting)
 
 ### Backend — Judge system (YES/NO/EXPLAIN)
 - `src/speech_to_spell/spell.py`: complete rewrite with `judge_spell` tool
@@ -43,14 +43,18 @@
 - `apply_spell()` supports both attack (damage opponent) and heal (heal self, capped at MAX_HEALTH)
 - Mana system completely removed — only HP bars
 
-### Frontend — Turn-based state machine
-- `App.tsx`: complete rewrite with turn phases: `select_emojis → record_spell → waiting_judge → [explain → record_explain → waiting_judge_explain] → result → (switch turn)`
-- Active player sees: emoji hand + target selector + cast button → recording screen → judge verdict
-- Inactive player panel dimmed with "En attente..." label
-- Push-to-talk Q/P keys removed — click-to-record button instead
-- Dual mic selectors removed — turn-based, one person at a time
+### Frontend — Free-form casting (no turns)
+- `App.tsx`: rewritten for simultaneous free-form play — no turn enforcement
+- Both players see their emoji hand, target selector, and text input at all times
+- Per-player independent state: each player has their own selected emojis, target, and explain phase
+- Push-to-talk Q/P keys: hold Q (left player) or P (right player) to record, release to send
+- Mic selector dropdown per player for same-computer play (only shown when >1 device)
+- Per-player EXPLAIN flow: only the player who got EXPLAIN needs to respond
+- Emojis cleared after verdict (4s delay), other player unaffected
 - Screen shake on big damage (≥20)
-- Auto-advance to next turn after 4s result display
+- `WizardPanel.tsx`: always full opacity, no dimming, shows push-to-talk key indicator
+- `game.py`: `current_turn` removed from `GameState`, no turn switching in `apply_spell()`
+- `main.py`: turn guards removed — any player can cast anytime
 
 ### Frontend — New components
 - **`EmojiHand.tsx`**: flex-wrap grid of clickable emoji cards with glow + scale on selection, "X selected (min 2)" counter
