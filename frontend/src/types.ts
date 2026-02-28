@@ -70,7 +70,6 @@ export interface CastSpellMessage {
   type: "cast_spell";
   player: PlayerSide;
   selected_emojis: string[];
-  target: "attack" | "heal";
   audio?: string; // base64
   text?: string;
 }
@@ -85,7 +84,6 @@ export interface TextSpellMessage {
   type: "text_spell";
   player: PlayerSide;
   selected_emojis: string[];
-  target: "attack" | "heal";
   text: string;
 }
 

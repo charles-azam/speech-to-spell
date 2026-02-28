@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { WizardPanel } from "./components/WizardPanel";
 import { EmojiHand } from "./components/EmojiHand";
-import { TargetSelector } from "./components/TargetSelector";
 import { JudgePanel } from "./components/JudgePanel";
 import { AmbientSparkles } from "./components/AmbientSparkles";
 import { TextSpellInput } from "./components/TextSpellInput";
@@ -27,8 +26,6 @@ function App() {
   // Per-player independent selection state
   const [leftSelectedEmojis, setLeftSelectedEmojis] = useState<string[]>([]);
   const [rightSelectedEmojis, setRightSelectedEmojis] = useState<string[]>([]);
-  const [leftTarget, setLeftTarget] = useState<"attack" | "heal">("attack");
-  const [rightTarget, setRightTarget] = useState<"attack" | "heal">("attack");
 
   // Per-player mic device
   const { devices } = useAudioDevices();
@@ -70,10 +67,6 @@ function App() {
   leftSelectedEmojisRef.current = leftSelectedEmojis;
   const rightSelectedEmojisRef = useRef(rightSelectedEmojis);
   rightSelectedEmojisRef.current = rightSelectedEmojis;
-  const leftTargetRef = useRef(leftTarget);
-  leftTargetRef.current = leftTarget;
-  const rightTargetRef = useRef(rightTarget);
-  rightTargetRef.current = rightTarget;
   const leftDeviceIdRef = useRef(leftDeviceId);
   leftDeviceIdRef.current = leftDeviceId;
   const rightDeviceIdRef = useRef(rightDeviceId);
@@ -88,6 +81,12 @@ function App() {
         setRightTranscription(msg.text);
         setRightProcessing(false);
       }
+      // STT done — now the LLM judge is evaluating
+      setJudgeWaiting(true);
+      setJudgeVerdict(null);
+      setJudgeComment(null);
+      setJudgeSpellName(null);
+      setJudgeDamage(null);
     } else if (msg.type === "spell_fizzle") {
       const fizzleMsg = msg.reason ?? "Ton sort s'est dissipe...";
       if (msg.player === "left") {
@@ -148,11 +147,9 @@ function App() {
         setTimeout(() => {
           if (caster === "left") {
             setLeftSelectedEmojis([]);
-            setLeftTarget("attack");
             setLeftTranscription(null);
           } else {
             setRightSelectedEmojis([]);
-            setRightTarget("attack");
             setRightTranscription(null);
           }
         }, 4000);
@@ -170,6 +167,15 @@ function App() {
   const sendRef = useRef(send);
   sendRef.current = send;
 
+  // Clear stuck states when connection drops
+  useEffect(() => {
+    if (!connected) {
+      setJudgeWaiting(false);
+      setLeftProcessing(false);
+      setRightProcessing(false);
+    }
+  }, [connected]);
+
   const handleRecordingComplete = useCallback(
     (audioBase64: string) => {
       const player = activePlayerRef.current;
@@ -179,18 +185,11 @@ function App() {
       else setRightProcessing(true);
 
       if (explainPlayerRef.current === player) {
-        // This player is in EXPLAIN phase — send explanation
         sendRef.current({ type: "explain_spell", audio: audioBase64 });
       } else {
         const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
-        const target = player === "left" ? leftTargetRef.current : rightTargetRef.current;
-        sendRef.current({ type: "cast_spell", player, selected_emojis: emojis, target, audio: audioBase64 });
+        sendRef.current({ type: "cast_spell", player, selected_emojis: emojis, audio: audioBase64 });
       }
-      setJudgeWaiting(true);
-      setJudgeVerdict(null);
-      setJudgeComment(null);
-      setJudgeSpellName(null);
-      setJudgeDamage(null);
     },
     [],
   );
@@ -206,14 +205,8 @@ function App() {
         send({ type: "explain_spell", text });
       } else {
         const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
-        const target = player === "left" ? leftTargetRef.current : rightTargetRef.current;
-        send({ type: "text_spell", player, selected_emojis: emojis, target, text });
+        send({ type: "text_spell", player, selected_emojis: emojis, text });
       }
-      setJudgeWaiting(true);
-      setJudgeVerdict(null);
-      setJudgeComment(null);
-      setJudgeSpellName(null);
-      setJudgeDamage(null);
     },
     [send],
   );
@@ -276,9 +269,7 @@ function App() {
 
     const hand = side === "left" ? leftHand : rightHand;
     const selectedEmojis = side === "left" ? leftSelectedEmojis : rightSelectedEmojis;
-    const target = side === "left" ? leftTarget : rightTarget;
     const onToggle = side === "left" ? handleLeftEmojiToggle : handleRightEmojiToggle;
-    const onTargetSelect = side === "left" ? setLeftTarget : setRightTarget;
     const isExplaining = explainPlayerRef.current === side;
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
@@ -298,11 +289,6 @@ function App() {
           emojis={hand}
           selectedEmojis={selectedEmojis}
           onToggle={onToggle}
-          disabled={false}
-        />
-        <TargetSelector
-          target={target}
-          onSelect={onTargetSelect}
           disabled={false}
         />
 

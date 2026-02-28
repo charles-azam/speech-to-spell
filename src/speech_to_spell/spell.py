@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from mistralai import Mistral
@@ -13,19 +14,26 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# --- Model switching via env var ---
-SPELL_MODEL = os.environ.get("SPELL_MODEL", "gpt-oss")
+# ---- Change this to switch provider ----
+SPELL_PROVIDER: Literal["mistral", "aws", "huggingface"] = "mistral"
 
-# Mistral client (always initialized — used for Ministral fallback and other features)
+# --- Mistral (direct) ---
 _mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
-MINISTRAL_MODEL = "ministral-8b-latest"
+MISTRAL_MODEL = "ministral-8b-latest"
 
-# HuggingFace/OpenAI-compatible client for GPT-OSS 120B via Cerebras
+# --- AWS Bedrock (OpenAI-compatible) ---
+_aws_client = OpenAI(
+    base_url="https://bedrock-mantle.us-west-2.api.aws/v1",
+    api_key=os.environ.get("AWS_BEARER_TOKEN_BEDROCK", ""),
+)
+AWS_MODEL = "mistral.ministral-8b-2410-v1:0"
+
+# --- HuggingFace GPT-OSS 120B ---
 _hf_client = OpenAI(
     base_url="https://router.huggingface.co/v1",
     api_key=os.environ.get("HUGGINGFACE_API_KEY", ""),
 )
-GPT_OSS_MODEL = "openai/gpt-oss-120b:cerebras"
+HF_MODEL = "openai/gpt-oss-120b:cerebras"
 
 # --- Valid templates for visual effects ---
 
@@ -68,6 +76,16 @@ JUDGE_SPELL_TOOL = {
                 "spell_name": {
                     "type": "string",
                     "description": "Nom dramatique du sort (seulement si YES).",
+                },
+                "target": {
+                    "type": "string",
+                    "enum": ["attack", "heal"],
+                    "description": (
+                        "attack = le sort attaque l'adversaire, "
+                        "heal = le sort soigne le lanceur. "
+                        "Déduis l'intention du sorcier depuis son incantation et ses emojis. "
+                        "Seulement si YES."
+                    ),
                 },
                 "damage": {
                     "type": "integer",
@@ -126,11 +144,16 @@ Tu dois évaluer la COHÉRENCE entre les emojis choisis et l'incantation, la CR�
   - Le lien est ténu mais potentiellement intéressant
   - Tu es intrigué mais pas convaincu
 
-## Règles de dégâts (quand YES)
-- Sort créatif et cohérent : 25-50 dégâts
-- Sort correct mais classique : 10-25 dégâts
-- Sort médiocre mais accepté : 1-10 dégâts
-- Soin : mêmes règles, le joueur se soigne au lieu d'attaquer
+## Attaque ou Soin ?
+C'est TOI qui décides si le sort est une attaque (target=attack) ou un soin (target=heal) en te basant sur l'incantation et les emojis.
+- Si l'incantation évoque la destruction, le combat, le feu, etc. → attack
+- Si l'incantation évoque la guérison, la protection, la régénération, etc. → heal
+- En cas de doute → attack (c'est un duel après tout)
+
+## Règles de dégâts/soin (quand YES)
+- Sort créatif et cohérent : 25-50
+- Sort correct mais classique : 10-25
+- Sort médiocre mais accepté : 1-10
 
 ## Ton style de commentaire
 Varie tes formulations ! Exemples de styles :
@@ -171,6 +194,7 @@ class JudgeVerdict(BaseModel):
     verdict: str  # YES, NO, EXPLAIN
     comment: str
     spell_name: str | None = None
+    target: str = "attack"  # "attack" or "heal" — decided by the judge
     damage: int = 0
     sound_id: str | None = None
     visual_effect: VisualEffect | None = None
@@ -188,6 +212,9 @@ def _parse_judge_tool(args: dict) -> JudgeVerdict:
         return JudgeVerdict(verdict=verdict, comment=comment)
 
     # Parse spell effects for YES verdict
+    target = args.get("target", "attack")
+    if target not in ("attack", "heal"):
+        target = "attack"
     damage = max(0, min(50, args.get("damage", 0)))
 
     # Derive visual params from damage
@@ -207,6 +234,7 @@ def _parse_judge_tool(args: dict) -> JudgeVerdict:
         verdict="YES",
         comment=comment,
         spell_name=args.get("spell_name"),
+        target=target,
         damage=damage,
         sound_id=sound_id,
         visual_effect=VisualEffect(
@@ -245,18 +273,15 @@ def _parse_tool_calls_openai(tool_calls: list) -> JudgeVerdict:
 
 def _build_user_message(
     selected_emojis: list[str],
-    target: str,
     transcription: str,
     game_context: str,
     explanation: str | None = None,
 ) -> str:
     """Build the user message for the LLM."""
     emoji_str = " ".join(selected_emojis)
-    action = "se soigner" if target == "self" else "attaquer l'adversaire"
 
     parts = [
         f"Emojis choisis par le sorcier : {emoji_str}",
-        f"Intention : {action}",
         f'Incantation : "{transcription}"',
     ]
 
@@ -270,24 +295,10 @@ def _build_user_message(
     return "\n".join(parts)
 
 
-def _interpret_mistral(
-    selected_emojis: list[str],
-    target: str,
-    transcription: str,
-    game_context: str,
-    explanation: str | None = None,
-) -> JudgeVerdict:
-    """Interpret spell via Mistral SDK (Ministral 8B)."""
-    user_content = _build_user_message(
-        selected_emojis=selected_emojis,
-        target=target,
-        transcription=transcription,
-        game_context=game_context,
-        explanation=explanation,
-    )
-
+def _interpret_mistral(user_content: str) -> JudgeVerdict:
+    """Interpret spell via Mistral SDK (direct)."""
     response = _mistral_client.chat.complete(
-        model=MINISTRAL_MODEL,
+        model=MISTRAL_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
@@ -295,29 +306,14 @@ def _interpret_mistral(
         tools=TOOLS,
         tool_choice="any",
     )
-
     tool_calls = response.choices[0].message.tool_calls or []
     return _parse_tool_calls_mistral(tool_calls=tool_calls)
 
 
-def _interpret_gpt_oss(
-    selected_emojis: list[str],
-    target: str,
-    transcription: str,
-    game_context: str,
-    explanation: str | None = None,
-) -> JudgeVerdict:
-    """Interpret spell via GPT-OSS 120B on HuggingFace (OpenAI SDK)."""
-    user_content = _build_user_message(
-        selected_emojis=selected_emojis,
-        target=target,
-        transcription=transcription,
-        game_context=game_context,
-        explanation=explanation,
-    )
-
-    response = _hf_client.chat.completions.create(
-        model=GPT_OSS_MODEL,
+def _interpret_openai(client: OpenAI, model: str, user_content: str) -> JudgeVerdict:
+    """Interpret spell via any OpenAI-compatible endpoint (AWS Bedrock, HuggingFace, etc.)."""
+    response = client.chat.completions.create(
+        model=model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
@@ -325,37 +321,29 @@ def _interpret_gpt_oss(
         tools=TOOLS,
         tool_choice="auto",
     )
-
     tool_calls = response.choices[0].message.tool_calls or []
     return _parse_tool_calls_openai(tool_calls=tool_calls)
 
 
 def interpret_spell(
     selected_emojis: list[str],
-    target: str,
     transcription: str,
     game_context: str = "",
     explanation: str | None = None,
 ) -> JudgeVerdict:
-    """Send spell to the judge LLM, return verdict.
-
-    Routes to GPT-OSS 120B (default) or Ministral 8B based on SPELL_MODEL env var.
-    """
-    if SPELL_MODEL == "ministral-8b":
-        logger.info(f"Using Ministral 8B for spell: {transcription!r}")
-        return _interpret_mistral(
-            selected_emojis=selected_emojis,
-            target=target,
-            transcription=transcription,
-            game_context=game_context,
-            explanation=explanation,
-        )
-
-    logger.info(f"Using GPT-OSS 120B for spell: {transcription!r}")
-    return _interpret_gpt_oss(
+    """Send spell to the judge LLM, return verdict."""
+    user_content = _build_user_message(
         selected_emojis=selected_emojis,
-        target=target,
         transcription=transcription,
         game_context=game_context,
         explanation=explanation,
     )
+
+    logger.info(f"Using {SPELL_PROVIDER} for spell: {transcription!r}")
+
+    if SPELL_PROVIDER == "mistral":
+        return _interpret_mistral(user_content=user_content)
+    elif SPELL_PROVIDER == "aws":
+        return _interpret_openai(client=_aws_client, model=AWS_MODEL, user_content=user_content)
+    else:
+        return _interpret_openai(client=_hf_client, model=HF_MODEL, user_content=user_content)

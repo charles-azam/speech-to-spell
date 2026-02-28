@@ -39,7 +39,6 @@ class PendingExplanation(BaseModel):
     """Stored context when judge asks for EXPLAIN."""
     player: str
     selected_emojis: list[str]
-    target: str
     transcription: str
 
 
@@ -110,30 +109,29 @@ async def process_spell(
     game: GameState,
     player: str,
     selected_emojis: list[str],
-    target_choice: str,
     transcription: str,
     explanation: str | None = None,
 ) -> tuple[GameState, PendingExplanation | None]:
     """Process a spell through the judge and apply results. Returns updated game + pending explanation if EXPLAIN."""
-    # Determine actual target side
-    if target_choice == "heal":
-        target = player
-    else:
-        target = "right" if player == "left" else "left"
-
     context = format_game_context(game=game, caster=player)
 
     verdict = await asyncio.to_thread(
         interpret_spell,
         selected_emojis=selected_emojis,
-        target=target_choice,
         transcription=transcription,
         game_context=context,
         explanation=explanation,
     )
+
+    # The judge decides attack vs heal
+    if verdict.target == "heal":
+        target_side = player
+    else:
+        target_side = "right" if player == "left" else "left"
+
     logger.info(
         f"Judge verdict for {player}: {verdict.verdict} — {verdict.comment} "
-        f"(spell={verdict.spell_name}, dmg={verdict.damage})"
+        f"(spell={verdict.spell_name}, target={verdict.target}, dmg={verdict.damage})"
     )
 
     # Send verdict to client
@@ -141,7 +139,7 @@ async def process_spell(
         websocket=websocket,
         verdict=verdict,
         caster=player,
-        target=target,
+        target=target_side,
     )
 
     if verdict.verdict == "EXPLAIN" and explanation is None:
@@ -149,7 +147,6 @@ async def process_spell(
         return game, PendingExplanation(
             player=player,
             selected_emojis=selected_emojis,
-            target=target_choice,
             transcription=transcription,
         )
 
@@ -158,7 +155,7 @@ async def process_spell(
         game = apply_spell(
             game=game,
             caster=player,
-            target=target,
+            target=target_side,
             damage=verdict.damage,
             spell_name=verdict.spell_name,
         )
@@ -193,7 +190,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         if msg_type == "cast_spell":
             player = message["player"]
             selected_emojis = message["selected_emojis"]
-            target_choice = message["target"]  # "attack" or "heal"
 
             if game.winner:
                 continue
@@ -244,14 +240,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             else:
                 continue
 
-            logger.info(f"Spell from {player}: emojis={selected_emojis}, target={target_choice}, text={text!r}")
+            logger.info(f"Spell from {player}: emojis={selected_emojis}, text={text!r}")
 
             game, pending_explanation = await process_spell(
                 websocket=websocket,
                 game=game,
                 player=player,
                 selected_emojis=selected_emojis,
-                target_choice=target_choice,
                 transcription=text,
             )
 
@@ -284,18 +279,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 game=game,
                 player=pending_explanation.player,
                 selected_emojis=pending_explanation.selected_emojis,
-                target_choice=pending_explanation.target,
                 transcription=pending_explanation.transcription,
                 explanation=explanation_text,
             )
             pending_explanation = None
 
         elif msg_type == "text_spell":
-            # Legacy text spell bypass for testing — convert to cast_spell format
+            # Text spell bypass for testing — same as cast_spell but with text
             player = message["player"]
             text = message.get("text", "").strip()
             selected_emojis = message.get("selected_emojis", [])
-            target_choice = message.get("target", "attack")
 
             if not text or game.winner:
                 continue
@@ -321,6 +314,5 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 game=game,
                 player=player,
                 selected_emojis=selected_emojis,
-                target_choice=target_choice,
                 transcription=text,
             )

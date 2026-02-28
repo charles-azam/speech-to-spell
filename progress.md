@@ -55,6 +55,9 @@
 - `WizardPanel.tsx`: always full opacity, no dimming, shows push-to-talk key indicator
 - `game.py`: `current_turn` removed from `GameState`, no turn switching in `apply_spell()`
 - `main.py`: turn guards removed — any player can cast anytime
+- Attack/heal buttons removed — the LLM judge decides from the incantation whether it's an attack or heal
+- `spell.py`: `target` field added to judge tool; judge infers attack vs heal from emojis + incantation
+- Fixed HP bug: old code had `target == "self"` vs `target == "heal"` mismatch, heals never registered correctly
 
 ### Frontend — New components
 - **`EmojiHand.tsx`**: flex-wrap grid of clickable emoji cards with glow + scale on selection, "X selected (min 2)" counter
