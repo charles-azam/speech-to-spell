@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -40,9 +41,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             audio_b64 = message["audio"]
             audio_bytes = base64.b64decode(audio_b64)
 
+            if len(audio_bytes) == 0:
+                logger.warning(f"Empty audio from player {player}, skipping")
+                continue
+
             logger.info(f"Received audio from player {player} ({len(audio_bytes)} bytes)")
 
-            text = transcribe(audio_bytes=audio_bytes)
+            text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
             logger.info(f"Transcription for player {player}: {text}")
 
             await websocket.send_text(json.dumps({
