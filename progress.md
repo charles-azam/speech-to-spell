@@ -10,69 +10,87 @@
 
 ### Backend — Voice pipeline
 - `src/speech_to_spell/voice.py`: Voxtral transcription via Mistral SDK (`voxtral-mini-latest`)
-- `src/speech_to_spell/main.py`: FastAPI app with WebSocket endpoint
-  - Receives base64 audio from client
-  - Sends to Voxtral for transcription
-  - Returns transcription text via WebSocket
+- ElevenLabs Scribe v2 as alternative STT provider (`STT_PROVIDER` env var)
+- Retry logic for transient network errors
 
-### Frontend — Push-to-talk UI
-- Two wizard panels (left/right) with push-to-talk keys (Q / P)
-- `useMicrophone` hook: captures audio via MediaRecorder (webm/opus)
-- `useWebSocket` hook: connects to backend, sends audio, receives transcriptions
-- Visual feedback: recording indicator (animated dots), "Transcribing..." state, transcription display
-- Dark wizard-duel aesthetic with Tailwind
-- Per-player microphone selection (dropdown per player, device enumeration)
+### Backend — Emoji hand system
+- `src/speech_to_spell/game.py`: ~200 emoji bank (animals, nature, food, objects, fantasy, symbols, space)
+- `deal_hand()`: deals 10 random emojis per player
+- `consume_and_refill()`: removes used emojis, instantly refills to 10 — no scarcity, emojis are a creative tool
+- `create_game()`: factory function that deals hands on creation
+- `PlayerState` now has `emoji_hand: list[str]`, no more mana
+- `GameState` tracks `current_turn` for turn-based play
 
-### Spell interpretation (single tool call)
-- `src/speech_to_spell/spell.py`: single `cast_spell` tool replaces the previous 5 separate tools
-  - Previous approach (5 tools: `name_spell`, `change_color`, `evaluate_spell`, `pick_sound`, `visual_effect`) was unreliable — GPT-OSS 120B often skipped `visual_effect`, resulting in no animations
-  - Now one mandatory `cast_spell` tool with all fields flattened: `spell_name`, `damage`, `mana_cost`, `sound_id`, `emojis`, `template`, `primary_color`, `secondary_color`
-  - Visual params (`particle_count`, `scale`, `duration_s`) derived from damage automatically — LLM doesn't need to think about them
-  - `tool_choice="any"` (Mistral) / `tool_choice="auto"` (GPT-OSS) forces the LLM to always call it
-- LLM receives full game context (HP, mana, recent spells) to make balance decisions
+### Backend — Judge system (YES/NO/EXPLAIN)
+- `src/speech_to_spell/spell.py`: complete rewrite with `judge_spell` tool
+- Three verdicts: YES (spell accepted, effects applied), NO (spell rejected), EXPLAIN (second chance)
+- `JudgeVerdict` return type with verdict, comment, spell_name, damage, sound_id, visual_effect
+- French theatrical judge personality with varied, funny comments
+- Evaluates coherence between selected emojis and spoken incantation
+- Rewards creativity, punishes spam/repetition
+- `interpret_spell()` now accepts `selected_emojis`, `target`, `transcription`, `game_context`, `explanation`
+
+### Backend — New message protocol + EXPLAIN flow
+- `src/speech_to_spell/main.py`: complete rewrite
+- New `cast_spell` message: player sends selected emojis + target + audio/text
+- New `explain_spell` message: player sends explanation after EXPLAIN verdict
+- New `judge_verdict` server message: verdict + French comment + spell effects
+- Emoji validation: checks emojis are in player's hand, minimum 2 selected
+- Turn validation: only the active player can cast
+- EXPLAIN flow: stores pending spell context, waits for explanation, re-evaluates (YES/NO only, no infinite loop)
+- Emojis consumed regardless of verdict
+- `game_state` now includes `emoji_hand` per player and `current_turn`
+- `apply_spell()` supports both attack (damage opponent) and heal (heal self, capped at MAX_HEALTH)
+- Mana system completely removed — only HP bars
+
+### Frontend — Turn-based state machine
+- `App.tsx`: complete rewrite with turn phases: `select_emojis → record_spell → waiting_judge → [explain → record_explain → waiting_judge_explain] → result → (switch turn)`
+- Active player sees: emoji hand + target selector + cast button → recording screen → judge verdict
+- Inactive player panel dimmed with "En attente..." label
+- Push-to-talk Q/P keys removed — click-to-record button instead
+- Dual mic selectors removed — turn-based, one person at a time
+- Screen shake on big damage (≥20)
+- Auto-advance to next turn after 4s result display
+
+### Frontend — New components
+- **`EmojiHand.tsx`**: flex-wrap grid of clickable emoji cards with glow + scale on selection, "X selected (min 2)" counter
+- **`TargetSelector.tsx`**: attack (red sword) / heal (green heart) toggle buttons
+- **`JudgePanel.tsx`**: center panel with judge character (⚖️), speech bubble with typewriter effect, verdict stamp animation (scale overshoot + slam), three distinct animations per verdict (nod/shake/eyebrow raise), thinking animation when waiting
+- **`AmbientSparkles.tsx`**: 20 floating purple sparkle particles with CSS animations (decorative background)
+
+### Frontend — Wizard school theme
+- Dark purple gradient background with subtle radial spots
+- Cinzel fantasy font for headings (Google Fonts)
+- Magic wand SVG cursor (`frontend/public/wand-cursor.svg`)
+- Page title: "Speech to Spell"
+- Judge animations: idle bob, thinking sway, nod (YES), head shake (NO), eyebrow raise (EXPLAIN)
+- Verdict stamp: scale overshoot + slam CSS animation
+- Turn glow: pulsing purple shadow on active player panel
+- Record button pulse animation
 
 ### Sound effects — pre-generated bank
-- **Approach changed**: real-time ElevenLabs generation was too slow (3-5s). Now using a **pre-generated sound bank** with instant lookup.
-- `scripts/generate_sounds.py`: generates sounds via ElevenLabs API and saves `.mp3` + `.json` metadata
-- 5 sounds generated: fireball, ice, thunder, dark, nature
-- `src/speech_to_spell/sound.py`: loads sounds by ID from `sounds_cache/`, provides descriptions for LLM prompt
-- LLM picks the closest sound via `pick_sound` tool (enum of available IDs)
-- Toggle `ENABLE_SOUND_EFFECTS` in `main.py` to disable
-- **Future**: scale to ~200 sounds, embed with Mistral Embed, store in Qdrant, RAG retrieval instead of enum
-
-### Game state & mechanics
-- `src/speech_to_spell/game.py`: GameState with HP/mana per player, turn tracking, win condition
-- Mana deducted from caster; if insufficient mana, damage scales down proportionally
-- Server tracks state per WebSocket session, sends `game_state` messages after each spell
-- Frontend: animated health (red) and mana (blue) bars on each wizard panel
-- Winner banner when a player reaches 0 HP
-
-### Configurable STT provider
-- `voice.py` now supports two speech-to-text backends: **Voxtral** (Mistral) and **ElevenLabs Scribe v2**
-- Controlled by `STT_PROVIDER` env var in `.env` — set to `"voxtral"` (default) or `"elevenlabs"`
-- Public `transcribe()` API unchanged — `main.py` needs no modifications
-- Voxtral keeps its existing retry logic for transient network errors
-- ElevenLabs uses the `elevenlabs` SDK (already a dependency) with `scribe_v2` model
+- 5 sounds: fireball, ice, thunder, dark, nature
+- Generated offline via `scripts/generate_sounds.py` (ElevenLabs API)
+- Instant lookup at runtime
 
 ### Visual spell effects — template-based animation system
-- `SpellEffect.tsx`: template-based particle animations with 9 templates (explosion, swirl, rain, wave_left, wave_right, shatter, pulse, spiral, rise)
-- Each template generates positioned emoji particles with unique motion patterns
+- `SpellEffect.tsx`: 9 templates (explosion, swirl, rain, wave_left, wave_right, shatter, pulse, spiral, rise)
 - CSS keyframe animations with parameterized colors/scale/duration
 - Auto-cleanup after animation duration
-- `WizardPanel.tsx` renders `SpellEffect`, `App.tsx` tracks `visualEffect` state per player
+
+### Configurable STT provider
+- Voxtral (default) or ElevenLabs Scribe v2 via `STT_PROVIDER` env var
 
 ### Text spell input (testing bypass)
-- `TextSpellInput.tsx`: text input below each wizard panel for typing spells directly
-- Sends `text_spell` WebSocket message (bypasses audio capture + Voxtral STT)
-- Backend handler in `main.py`: routes typed text straight to `interpret_spell()`
-- **Temporary** — for rapid testing without microphone, will be removed later
-- Keyboard events stopped from propagating (typing doesn't trigger push-to-talk keys)
+- `TextSpellInput.tsx`: type spells directly, bypasses audio capture + STT
+- Now works with the new emoji hand system (requires emoji selection first)
 
 ## Not yet implemented
-- **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup (replacing enum-based pick)
-- Room system (multiplayer lobby)
-- ElevenLabs commentator (TTS narration)
-- VAD (Silero) — currently using push-to-talk which is fine for turn-based
+- **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
+- **ElevenLabs judge voice** — TTS the French comment
+- **Commentator** — separate LLM-generated play-by-play with different voice
+- **Room system** — multiplayer lobby with 4-letter codes
+- **VAD (Silero)** — not needed for turn-based
 
 ## How to run
 ```bash
@@ -84,7 +102,6 @@ uv run uvicorn speech_to_spell.main:app --reload
 
 # Frontend (in another terminal)
 cd frontend && npm run dev
-
 ```
 
 ### URLs

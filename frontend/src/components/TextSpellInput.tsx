@@ -28,14 +28,39 @@ export function TextSpellInput({ side, onCast, disabled }: TextSpellInputProps) 
           e.stopPropagation();
           if (e.key === "Enter") handleSubmit();
         }}
-        placeholder="Type a spell..."
+        placeholder="Ecris ton incantation..."
         disabled={disabled}
-        className="flex-1 bg-white/5 border border-white/10 focus:border-purple-500/50 rounded-lg px-3 py-1.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 disabled:opacity-40"
+        className="flex-1 px-3 py-1.5 text-sm outline-none transition-all duration-200"
+        style={{
+          fontFamily: "'Crimson Pro', serif",
+          fontStyle: "italic",
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "3px",
+          color: "var(--text-primary)",
+          opacity: disabled ? 0.35 : 1,
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = "var(--gold-dim)";
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = "var(--border-subtle)";
+        }}
       />
       <button
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
-        className="px-3 py-1.5 text-xs font-semibold bg-purple-600/40 hover:bg-purple-600/60 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-purple-200 transition-colors"
+        className="px-4 py-1.5 transition-all duration-200"
+        style={{
+          fontFamily: "'MedievalSharp', cursive",
+          fontSize: "0.8rem",
+          letterSpacing: "0.1em",
+          background: "linear-gradient(180deg, rgba(201, 168, 76, 0.12) 0%, rgba(201, 168, 76, 0.04) 100%)",
+          border: "1px solid var(--gold-dim)",
+          borderRadius: "3px",
+          color: "var(--gold-bright)",
+          opacity: disabled || !value.trim() ? 0.25 : 1,
+        }}
       >
         Cast
       </button>

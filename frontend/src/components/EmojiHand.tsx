@@ -14,20 +14,35 @@ export function EmojiHand({
   const selectedCount = selectedEmojis.length;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      {/* Header */}
       <div className="flex justify-between items-center px-1">
-        <span className="text-xs text-white/40 font-medium tracking-wide uppercase">
-          Emoji Hand
-        </span>
+        <div className="ornate-rule flex-1">
+          <span
+            style={{
+              fontFamily: "'MedievalSharp', cursive",
+              fontSize: "10px",
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "var(--gold-dim)",
+            }}
+          >
+            Main d'emojis
+          </span>
+        </div>
         <span
-          className={`text-xs font-mono ${
-            selectedCount >= 2 ? "text-green-400" : "text-amber-400"
-          }`}
+          className="ml-3 text-xs tabular-nums"
+          style={{
+            fontFamily: "'Crimson Pro', serif",
+            color: selectedCount >= 2 ? "var(--emerald)" : "var(--amber-warn)",
+          }}
         >
-          {selectedCount} selected {selectedCount < 2 && "(min 2)"}
+          {selectedCount} {selectedCount < 2 ? "(min 2)" : "choisis"}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5 justify-center">
+
+      {/* Emoji grid */}
+      <div className="flex flex-wrap gap-2 justify-center">
         {emojis.map((emoji, idx) => {
           const isSelected = selectedEmojis.includes(emoji);
           return (
@@ -35,22 +50,57 @@ export function EmojiHand({
               key={`${emoji}-${idx}`}
               onClick={() => onToggle(emoji)}
               disabled={disabled}
-              className={`
-                w-11 h-11 text-2xl rounded-lg flex items-center justify-center
-                transition-all duration-150 select-none
-                ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:scale-110 active:scale-95"}
-                ${
-                  isSelected
-                    ? "bg-purple-500/30 ring-2 ring-purple-400 scale-110 shadow-[0_0_12px_rgba(168,85,247,0.4)]"
-                    : "bg-white/5 hover:bg-white/10"
+              className="select-none transition-all duration-150"
+              style={{
+                width: "46px",
+                height: "46px",
+                fontSize: "1.6rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: isSelected
+                  ? "linear-gradient(180deg, rgba(201, 168, 76, 0.15) 0%, rgba(201, 168, 76, 0.05) 100%)"
+                  : "var(--bg-surface)",
+                border: `1px solid ${isSelected ? "var(--gold)" : "var(--border-subtle)"}`,
+                borderRadius: "4px",
+                boxShadow: isSelected
+                  ? "0 0 16px rgba(201, 168, 76, 0.25), inset 0 0 12px rgba(201, 168, 76, 0.08)"
+                  : "none",
+                transform: isSelected ? "scale(1.1) translateY(-2px)" : "scale(1)",
+                opacity: disabled ? 0.35 : 1,
+                cursor: disabled ? "not-allowed" : undefined,
+              }}
+              onMouseEnter={(e) => {
+                if (!disabled && !isSelected) {
+                  e.currentTarget.style.borderColor = "var(--gold-dim)";
+                  e.currentTarget.style.background = "var(--bg-card-hover)";
+                  e.currentTarget.style.transform = "scale(1.08)";
                 }
-              `}
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  e.currentTarget.style.borderColor = "var(--border-subtle)";
+                  e.currentTarget.style.background = "var(--bg-surface)";
+                  e.currentTarget.style.transform = "scale(1)";
+                }
+              }}
             >
               {emoji}
             </button>
           );
         })}
       </div>
+
+      {/* Selected preview */}
+      {selectedCount > 0 && (
+        <div className="flex items-center justify-center gap-1 text-2xl">
+          {selectedEmojis.map((emoji, i) => (
+            <span key={`sel-${i}`} className="animate-pulse" style={{ animationDelay: `${i * 100}ms` }}>
+              {emoji}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

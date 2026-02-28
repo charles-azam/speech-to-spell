@@ -61,7 +61,6 @@ function App() {
   const [leftProcessing, setLeftProcessing] = useState(false);
   const [rightProcessing, setRightProcessing] = useState(false);
 
-  // Ref to track if we're in explain flow
   const isExplainPhaseRef = useRef(false);
 
   const handleServerMessage = useCallback((msg: ServerMessage) => {
@@ -92,7 +91,6 @@ function App() {
       setJudgeDamage(msg.damage);
 
       if (msg.verdict === "YES" && msg.visual_effect) {
-        // Show spell effects on target
         const primaryColor = msg.visual_effect.primary_color;
         if (msg.caster === "left") {
           setLeftSpellName(msg.spell_name);
@@ -119,7 +117,6 @@ function App() {
           }, cleanupMs);
         }
 
-        // Screen shake on big damage
         if (msg.damage >= 20) {
           setScreenShake(true);
           setTimeout(() => setScreenShake(false), 500);
@@ -127,14 +124,11 @@ function App() {
       }
 
       if (msg.verdict === "EXPLAIN" && !isExplainPhaseRef.current) {
-        // Judge wants an explanation
         isExplainPhaseRef.current = true;
         setTurnPhase("explain");
       } else {
-        // YES or NO or second EXPLAIN verdict — show result then switch turn
         isExplainPhaseRef.current = false;
         setTurnPhase("result");
-        // Auto-advance to next turn after delay
         setTimeout(() => {
           setTurnPhase("select_emojis");
           setSelectedEmojis([]);
@@ -155,33 +149,17 @@ function App() {
 
   const { send, connected } = useWebSocket(handleServerMessage);
 
-  // Recording complete callback
   const handleRecordingComplete = useCallback(
     (audioBase64: string) => {
       const player = currentTurn;
-
-      if (player === "left") {
-        setLeftProcessing(true);
-      } else {
-        setRightProcessing(true);
-      }
+      if (player === "left") setLeftProcessing(true);
+      else setRightProcessing(true);
 
       if (isExplainPhaseRef.current && turnPhase === "record_explain") {
-        // Send explanation audio
-        send({
-          type: "explain_spell",
-          audio: audioBase64,
-        });
+        send({ type: "explain_spell", audio: audioBase64 });
         setTurnPhase("waiting_judge_explain");
       } else {
-        // Send cast spell with audio
-        send({
-          type: "cast_spell",
-          player,
-          selected_emojis: selectedEmojis,
-          target,
-          audio: audioBase64,
-        });
+        send({ type: "cast_spell", player, selected_emojis: selectedEmojis, target, audio: audioBase64 });
         setTurnPhase("waiting_judge");
       }
       setJudgeWaiting(true);
@@ -195,31 +173,17 @@ function App() {
 
   const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
 
-  // Text spell handler (testing bypass)
   const handleTextSpell = useCallback(
     (player: PlayerSide, text: string) => {
       if (player !== currentTurn) return;
-
-      if (player === "left") {
-        setLeftProcessing(true);
-      } else {
-        setRightProcessing(true);
-      }
+      if (player === "left") setLeftProcessing(true);
+      else setRightProcessing(true);
 
       if (isExplainPhaseRef.current && turnPhase === "explain") {
-        send({
-          type: "explain_spell",
-          text,
-        });
+        send({ type: "explain_spell", text });
         setTurnPhase("waiting_judge_explain");
       } else {
-        send({
-          type: "text_spell",
-          player,
-          selected_emojis: selectedEmojis,
-          target,
-          text,
-        });
+        send({ type: "text_spell", player, selected_emojis: selectedEmojis, target, text });
         setTurnPhase("waiting_judge");
       }
       setJudgeWaiting(true);
@@ -231,22 +195,13 @@ function App() {
     [send, currentTurn, selectedEmojis, target, turnPhase],
   );
 
-  const handleEmojiToggle = useCallback(
-    (emoji: string) => {
-      setSelectedEmojis((prev) => {
-        if (prev.includes(emoji)) {
-          return prev.filter((e) => e !== emoji);
-        }
-        return [...prev, emoji];
-      });
-    },
-    [],
-  );
+  const handleEmojiToggle = useCallback((emoji: string) => {
+    setSelectedEmojis((prev) =>
+      prev.includes(emoji) ? prev.filter((e) => e !== emoji) : [...prev, emoji],
+    );
+  }, []);
 
-  const canCast =
-    selectedEmojis.length >= 2 &&
-    turnPhase === "select_emojis" &&
-    !winner;
+  const canCast = selectedEmojis.length >= 2 && turnPhase === "select_emojis" && !winner;
 
   const handleCastClick = useCallback(() => {
     if (!canCast) return;
@@ -254,11 +209,8 @@ function App() {
   }, [canCast]);
 
   const handleRecordClick = useCallback(() => {
-    if (recording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
+    if (recording) stopRecording();
+    else startRecording();
   }, [recording, startRecording, stopRecording]);
 
   const handleExplainRecordClick = useCallback(() => {
@@ -270,54 +222,174 @@ function App() {
     }
   }, [recording, startRecording, stopRecording]);
 
-  // Reset judge display on turn change
-  useEffect(() => {
-    if (turnPhase === "select_emojis") {
-      // Keep judge verdict visible briefly, it will be cleared by the timeout in judge_verdict handler
-    }
-  }, [turnPhase]);
+  useEffect(() => { /* turnPhase watcher — no-op, judge timeout handles reset */ }, [turnPhase]);
 
-  const activeHand = currentTurn === "left" ? leftHand : rightHand;
   const isSelectPhase = turnPhase === "select_emojis" && !winner;
   const isRecordPhase = turnPhase === "record_spell" || turnPhase === "record_explain";
   const isExplainPhase = turnPhase === "explain";
   const isWaiting = turnPhase === "waiting_judge" || turnPhase === "waiting_judge_explain";
+
+  // Active player's controls
+  const renderControls = (side: PlayerSide) => {
+    if (currentTurn !== side || winner) return null;
+
+    const hand = side === "left" ? leftHand : rightHand;
+
+    return (
+      <div className="flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <EmojiHand
+          emojis={hand}
+          selectedEmojis={selectedEmojis}
+          onToggle={handleEmojiToggle}
+          disabled={!isSelectPhase}
+        />
+        <TargetSelector
+          target={target}
+          onSelect={setTarget}
+          disabled={!isSelectPhase}
+        />
+
+        {/* Cast button */}
+        {isSelectPhase && (
+          <button
+            onClick={handleCastClick}
+            disabled={!canCast}
+            className="btn-arcane w-full py-3 text-center"
+            style={{
+              borderRadius: "4px",
+              fontSize: "1.15rem",
+              background: canCast
+                ? "linear-gradient(180deg, rgba(201, 168, 76, 0.18) 0%, rgba(201, 168, 76, 0.05) 100%)"
+                : undefined,
+              boxShadow: canCast
+                ? "0 0 25px rgba(201, 168, 76, 0.2), inset 0 0 20px rgba(201, 168, 76, 0.05)"
+                : undefined,
+            }}
+          >
+            Lancer le Sort
+          </button>
+        )}
+
+        {/* Record button */}
+        {isRecordPhase && (
+          <button
+            onClick={handleRecordClick}
+            className={`w-full py-3 transition-all duration-200 ${recording ? "animate-record-pulse" : ""}`}
+            style={{
+              fontFamily: "'MedievalSharp', cursive",
+              fontSize: "1.1rem",
+              letterSpacing: "0.05em",
+              background: recording
+                ? "linear-gradient(180deg, rgba(198, 40, 40, 0.3) 0%, rgba(198, 40, 40, 0.1) 100%)"
+                : "linear-gradient(180deg, rgba(198, 40, 40, 0.15) 0%, rgba(198, 40, 40, 0.05) 100%)",
+              border: `1px solid ${recording ? "var(--crimson)" : "rgba(198, 40, 40, 0.4)"}`,
+              color: recording ? "#ef5350" : "#e57373",
+              borderRadius: "4px",
+              boxShadow: recording
+                ? "0 0 30px var(--crimson-glow)"
+                : "0 0 15px rgba(198, 40, 40, 0.15)",
+            }}
+          >
+            {recording ? "Relacher pour envoyer" : "Maintenir pour incanter"}
+          </button>
+        )}
+
+        {/* Explain prompt */}
+        {isExplainPhase && (
+          <div className="flex flex-col gap-2">
+            <p
+              className="text-sm text-center"
+              style={{ fontFamily: "'Crimson Pro', serif", fontStyle: "italic", color: "var(--amber-warn)" }}
+            >
+              Le juge veut une explication ! Justifie ton sort.
+            </p>
+            <button
+              onClick={handleExplainRecordClick}
+              className={`w-full py-3 transition-all duration-200 ${recording ? "animate-record-pulse" : ""}`}
+              style={{
+                fontFamily: "'MedievalSharp', cursive",
+                fontSize: "1.1rem",
+                letterSpacing: "0.05em",
+                background: recording
+                  ? "linear-gradient(180deg, rgba(217, 119, 6, 0.3) 0%, rgba(217, 119, 6, 0.1) 100%)"
+                  : "linear-gradient(180deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.05) 100%)",
+                border: `1px solid ${recording ? "var(--amber-warn)" : "rgba(217, 119, 6, 0.4)"}`,
+                color: recording ? "#ffa726" : "#ffb74d",
+                borderRadius: "4px",
+              }}
+            >
+              {recording ? "Relacher pour envoyer" : "Expliquer"}
+            </button>
+          </div>
+        )}
+
+        {/* Text input */}
+        <TextSpellInput
+          side={side}
+          onCast={handleTextSpell}
+          disabled={!(isSelectPhase || isExplainPhase) || selectedEmojis.length < 2}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className={`min-h-screen flex flex-col ${screenShake ? "animate-screen-shake" : ""}`}>
       <AmbientSparkles />
 
       {/* Header */}
-      <header className="text-center py-5 relative z-10">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-400 bg-clip-text text-transparent">
+      <header className="text-center pt-6 pb-4 relative z-10">
+        <h1
+          className="text-4xl font-bold tracking-[0.08em]"
+          style={{
+            fontFamily: "'Cinzel Decorative', 'Cinzel', serif",
+            color: "var(--gold-bright)",
+            textShadow: "0 0 40px rgba(201, 168, 76, 0.25), 0 2px 4px rgba(0,0,0,0.5)",
+          }}
+        >
           Speech to Spell
         </h1>
-        <div className="mt-2 flex items-center justify-center gap-4">
+        <div className="mt-3 flex items-center justify-center">
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
+              className="w-2 h-2 rounded-full"
+              style={{
+                backgroundColor: connected ? "var(--emerald)" : "var(--crimson)",
+                boxShadow: connected ? "0 0 8px var(--emerald-glow)" : "0 0 8px var(--crimson-glow)",
+              }}
             />
-            <span className="text-xs text-white/40">
+            <span className="text-xs" style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-dim)" }}>
               {connected ? "Connected" : "Disconnected"}
             </span>
           </div>
+        </div>
+        {/* Ornamental rule */}
+        <div className="ornate-rule mt-3 max-w-md mx-auto">
+          <span style={{ color: "var(--gold-dim)", fontSize: "10px" }}>{"\u2726"} {"\u2726"} {"\u2726"}</span>
         </div>
       </header>
 
       {/* Winner banner */}
       {winner && (
-        <div className="text-center py-4 relative z-10">
-          <p className="text-3xl font-black text-yellow-400 animate-pulse">
-            {winner === "left" ? "Wizard 1" : "Wizard 2"} wins!
+        <div className="text-center py-6 relative z-10">
+          <p
+            className="text-4xl font-bold animate-pulse tracking-[0.1em]"
+            style={{
+              fontFamily: "'Cinzel Decorative', serif",
+              color: "var(--gold-bright)",
+              textShadow: "0 0 40px rgba(201, 168, 76, 0.5), 0 0 80px rgba(201, 168, 76, 0.25)",
+            }}
+          >
+            {winner === "left" ? "Wizard 1" : "Wizard 2"} Triomphe !
           </p>
         </div>
       )}
 
       {/* Arena */}
-      <main className="flex-1 flex items-start justify-center px-6 pb-6 relative z-10">
+      <main className="flex-1 flex items-start justify-center px-6 pb-8 relative z-10">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-6 w-full max-w-6xl items-start">
-          {/* Player 1 */}
-          <div className="flex flex-col gap-3">
+          {/* Player 1 column */}
+          <div className="flex flex-col gap-4">
             <WizardPanel
               side="left"
               name="Wizard 1"
@@ -330,83 +402,7 @@ function App() {
               health={leftHealth}
               visualEffect={leftVisualEffect}
             />
-
-            {/* Emoji hand + controls for left player */}
-            {currentTurn === "left" && !winner && (
-              <div className="flex flex-col gap-3">
-                <EmojiHand
-                  emojis={leftHand}
-                  selectedEmojis={selectedEmojis}
-                  onToggle={handleEmojiToggle}
-                  disabled={!isSelectPhase}
-                />
-                <TargetSelector
-                  target={target}
-                  onSelect={setTarget}
-                  disabled={!isSelectPhase}
-                />
-
-                {/* Cast / Record / Explain buttons */}
-                {isSelectPhase && (
-                  <button
-                    onClick={handleCastClick}
-                    disabled={!canCast}
-                    className={`
-                      w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                      transition-all duration-200
-                      ${canCast
-                        ? "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)]"
-                        : "bg-white/5 text-white/20 cursor-not-allowed"
-                      }
-                    `}
-                  >
-                    Lancer le sort
-                  </button>
-                )}
-                {isRecordPhase && (
-                  <button
-                    onClick={handleRecordClick}
-                    className={`
-                      w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                      transition-all duration-200
-                      ${recording
-                        ? "bg-red-600 text-white animate-record-pulse"
-                        : "bg-red-500/80 hover:bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]"
-                      }
-                    `}
-                  >
-                    {recording ? "Relacher pour envoyer" : "Maintenir pour incanter"}
-                  </button>
-                )}
-                {isExplainPhase && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-amber-400 text-sm text-center font-medium">
-                      Le juge veut une explication ! Justifie ton sort.
-                    </p>
-                    <button
-                      onClick={handleExplainRecordClick}
-                      className={`
-                        w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                        transition-all duration-200
-                        ${recording
-                          ? "bg-amber-600 text-white animate-record-pulse"
-                          : "bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-                        }
-                      `}
-                    >
-                      {recording ? "Relacher pour envoyer" : "Expliquer"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Text input for testing */}
-                <TextSpellInput
-                  side="left"
-                  onCast={handleTextSpell}
-                  disabled={!(isSelectPhase || isExplainPhase) || selectedEmojis.length < 2}
-                />
-              </div>
-            )}
+            {renderControls("left")}
           </div>
 
           {/* Judge Panel (center) */}
@@ -418,8 +414,8 @@ function App() {
             damage={judgeDamage}
           />
 
-          {/* Player 2 */}
-          <div className="flex flex-col gap-3">
+          {/* Player 2 column */}
+          <div className="flex flex-col gap-4">
             <WizardPanel
               side="right"
               name="Wizard 2"
@@ -432,83 +428,7 @@ function App() {
               health={rightHealth}
               visualEffect={rightVisualEffect}
             />
-
-            {/* Emoji hand + controls for right player */}
-            {currentTurn === "right" && !winner && (
-              <div className="flex flex-col gap-3">
-                <EmojiHand
-                  emojis={rightHand}
-                  selectedEmojis={selectedEmojis}
-                  onToggle={handleEmojiToggle}
-                  disabled={!isSelectPhase}
-                />
-                <TargetSelector
-                  target={target}
-                  onSelect={setTarget}
-                  disabled={!isSelectPhase}
-                />
-
-                {/* Cast / Record / Explain buttons */}
-                {isSelectPhase && (
-                  <button
-                    onClick={handleCastClick}
-                    disabled={!canCast}
-                    className={`
-                      w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                      transition-all duration-200
-                      ${canCast
-                        ? "bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)]"
-                        : "bg-white/5 text-white/20 cursor-not-allowed"
-                      }
-                    `}
-                  >
-                    Lancer le sort
-                  </button>
-                )}
-                {isRecordPhase && (
-                  <button
-                    onClick={handleRecordClick}
-                    className={`
-                      w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                      transition-all duration-200
-                      ${recording
-                        ? "bg-red-600 text-white animate-record-pulse"
-                        : "bg-red-500/80 hover:bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]"
-                      }
-                    `}
-                  >
-                    {recording ? "Relacher pour envoyer" : "Maintenir pour incanter"}
-                  </button>
-                )}
-                {isExplainPhase && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-amber-400 text-sm text-center font-medium">
-                      Le juge veut une explication ! Justifie ton sort.
-                    </p>
-                    <button
-                      onClick={handleExplainRecordClick}
-                      className={`
-                        w-full py-3 rounded-xl text-lg font-bold uppercase tracking-wider
-                        transition-all duration-200
-                        ${recording
-                          ? "bg-amber-600 text-white animate-record-pulse"
-                          : "bg-amber-500/80 hover:bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-                        }
-                      `}
-                    >
-                      {recording ? "Relacher pour envoyer" : "Expliquer"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Text input for testing */}
-                <TextSpellInput
-                  side="right"
-                  onCast={handleTextSpell}
-                  disabled={!(isSelectPhase || isExplainPhase) || selectedEmojis.length < 2}
-                />
-              </div>
-            )}
+            {renderControls("right")}
           </div>
         </div>
       </main>

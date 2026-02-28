@@ -16,24 +16,57 @@ interface WizardPanelProps {
 
 function HealthBar({ value, max }: { value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  const color = pct > 50 ? "#22c55e" : pct > 25 ? "#eab308" : "#ef4444";
+  const color = pct > 50 ? "var(--emerald)" : pct > 25 ? "var(--amber-warn)" : "var(--crimson)";
+  const glowColor = pct > 50 ? "var(--emerald-glow)" : pct > 25 ? "rgba(217, 119, 6, 0.3)" : "var(--crimson-glow)";
+
   return (
     <div className="w-full">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-white/60 font-medium">HP</span>
-        <span className="text-white/80 font-mono">
-          {value}/{max}
+      <div className="flex justify-between items-center mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontSize: "12px" }}>{pct > 25 ? "\u2764\uFE0F" : "\u{1F494}"}</span>
+          <span
+            className="text-xs uppercase tracking-[0.15em]"
+            style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--text-secondary)" }}
+          >
+            Vie
+          </span>
+        </div>
+        <span
+          className="text-sm font-semibold tabular-nums"
+          style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-primary)" }}
+        >
+          {value}
+          <span style={{ color: "var(--text-dim)" }}>/{max}</span>
         </span>
       </div>
-      <div className="h-4 bg-white/10 rounded-full overflow-hidden">
+      {/* Ornate HP bar */}
+      <div
+        className="relative h-5 overflow-hidden"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "2px",
+        }}
+      >
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
+          className="h-full transition-all duration-700 ease-out"
           style={{
             width: `${pct}%`,
-            backgroundColor: color,
-            boxShadow: `0 0 8px ${color}66`,
+            background: `linear-gradient(180deg, ${color}, color-mix(in srgb, ${color} 60%, black))`,
+            boxShadow: `0 0 12px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+            borderRadius: "1px",
           }}
         />
+        {/* Decorative notches */}
+        <div className="absolute inset-0 flex" style={{ pointerEvents: "none" }}>
+          {[25, 50, 75].map((mark) => (
+            <div
+              key={mark}
+              className="absolute top-0 bottom-0 w-px"
+              style={{ left: `${mark}%`, background: "rgba(255,255,255,0.08)" }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -56,24 +89,23 @@ export function WizardPanel({
   return (
     <div
       className={`
-        relative flex flex-col items-center justify-between p-6 rounded-2xl border
-        transition-all duration-500 min-h-[350px] overflow-hidden
-        ${isActive ? "animate-turn-glow" : "opacity-60"}
+        ornate-card ornate-card-bottom relative flex flex-col items-center justify-between
+        p-6 transition-all duration-500 min-h-[340px]
+        ${isActive ? "animate-turn-glow" : ""}
       `}
       style={{
-        borderColor:
-          hitColor ??
-          (isActive
-            ? "rgba(168,85,247,0.4)"
-            : isLeft
-              ? "rgba(99,102,241,0.15)"
-              : "rgba(245,158,11,0.15)"),
+        borderColor: hitColor ?? (isActive ? "var(--border-active)" : "var(--border-subtle)"),
         backgroundColor: hitColor
-          ? `color-mix(in srgb, ${hitColor} 15%, transparent)`
-          : undefined,
+          ? `color-mix(in srgb, ${hitColor} 10%, var(--bg-card))`
+          : "var(--bg-card)",
         boxShadow: hitColor
-          ? `0 0 40px ${hitColor}44, inset 0 0 60px ${hitColor}22`
-          : undefined,
+          ? `0 0 50px ${hitColor}33, inset 0 0 40px ${hitColor}11`
+          : isActive
+            ? undefined
+            : "none",
+        opacity: isActive ? 1 : 0.5,
+        filter: isActive ? "none" : "saturate(0.5)",
+        transition: "all 0.5s ease, opacity 0.5s ease, filter 0.5s ease",
       }}
     >
       {/* Spell name overlay */}
@@ -83,10 +115,13 @@ export function WizardPanel({
           style={{
             textShadow: hitColor
               ? `0 0 20px ${hitColor}, 0 0 40px ${hitColor}, 0 0 80px ${hitColor}`
-              : undefined,
+              : `0 0 20px var(--gold), 0 0 40px var(--gold)`,
           }}
         >
-          <p className="text-2xl font-black uppercase tracking-wider text-white animate-pulse">
+          <p
+            className="text-2xl font-bold uppercase tracking-[0.15em] animate-pulse"
+            style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--text-primary)" }}
+          >
             {spellName}
           </p>
         </div>
@@ -96,20 +131,33 @@ export function WizardPanel({
       {visualEffect && <SpellEffect effect={visualEffect} />}
 
       {/* Wizard avatar + name */}
-      <div className="flex flex-col items-center gap-3 z-20">
+      <div className="flex flex-col items-center gap-2 z-20">
         <div
-          className={`text-7xl ${recording ? "animate-bounce" : ""} transition-all`}
+          className={`text-7xl select-none transition-all duration-300 ${recording ? "animate-bounce" : ""}`}
+          style={{
+            filter: isActive ? "drop-shadow(0 0 12px rgba(201, 168, 76, 0.3))" : "none",
+          }}
         >
           {isLeft ? "\u{1F9D9}" : "\u{1F9D9}\u200D\u2640\uFE0F"}
         </div>
-        <h2 className="text-xl font-bold tracking-wide">{name}</h2>
-        {isActive && (
-          <span className="text-xs text-purple-300/80 uppercase tracking-[0.2em] font-medium">
+        <h2
+          className="text-xl tracking-wide"
+          style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold-bright)" }}
+        >
+          {name}
+        </h2>
+        {isActive ? (
+          <span
+            className="text-xs uppercase tracking-[0.25em]"
+            style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold)" }}
+          >
             A ton tour !
           </span>
-        )}
-        {!isActive && (
-          <span className="text-xs text-white/20 uppercase tracking-[0.2em]">
+        ) : (
+          <span
+            className="text-xs uppercase tracking-[0.25em]"
+            style={{ color: "var(--text-dim)" }}
+          >
             En attente...
           </span>
         )}
@@ -124,21 +172,27 @@ export function WizardPanel({
       <div className="flex-1 flex items-center justify-center w-full my-2 z-20">
         {recording ? (
           <div className="flex flex-col items-center gap-3">
-            <div className="flex gap-1">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse [animation-delay:150ms]" />
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse [animation-delay:300ms]" />
+            <div className="flex gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: "var(--crimson)" }} />
+              <span className="w-2.5 h-2.5 rounded-full animate-pulse [animation-delay:150ms]" style={{ backgroundColor: "var(--crimson)" }} />
+              <span className="w-2.5 h-2.5 rounded-full animate-pulse [animation-delay:300ms]" style={{ backgroundColor: "var(--crimson)" }} />
             </div>
-            <p className="text-red-400 text-sm font-medium uppercase tracking-widest">
+            <p
+              className="text-sm uppercase tracking-[0.2em]"
+              style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--crimson)" }}
+            >
               Incantation...
             </p>
           </div>
         ) : processing ? (
-          <p className="text-yellow-400/70 text-sm italic animate-pulse">
+          <p className="text-sm italic animate-pulse" style={{ color: "var(--gold-dim)" }}>
             Le juge ecoute...
           </p>
         ) : transcription ? (
-          <p className="text-lg text-center font-medium italic text-white/90 max-w-xs leading-relaxed">
+          <p
+            className="text-lg text-center italic leading-relaxed max-w-xs"
+            style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-primary)" }}
+          >
             &ldquo;{transcription}&rdquo;
           </p>
         ) : null}
