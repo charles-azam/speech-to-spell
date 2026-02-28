@@ -59,12 +59,25 @@ export interface SpellFizzleMessage {
   reason?: string;
 }
 
+export interface PlayerJoinedMessage {
+  type: "player_joined";
+  side: PlayerSide;
+  wizard_name: string;
+}
+
+export interface PlayerDisconnectedMessage {
+  type: "player_disconnected";
+  side: PlayerSide;
+}
+
 export type ServerMessage =
   | TranscriptionMessage
   | JudgeVerdictMessage
   | GameStateMessage
   | SoundEffectMessage
-  | SpellFizzleMessage;
+  | SpellFizzleMessage
+  | PlayerJoinedMessage
+  | PlayerDisconnectedMessage;
 
 export interface CastSpellMessage {
   type: "cast_spell";

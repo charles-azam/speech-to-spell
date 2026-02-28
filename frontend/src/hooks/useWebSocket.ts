@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { API_BASE } from "../config";
 import type { ServerMessage, ClientMessage } from "../types";
 
 // Singleton AudioContext — lives outside React, immune to re-renders
@@ -18,15 +19,30 @@ function playSound(base64: string) {
   });
 }
 
-export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
+export function useWebSocket(
+  onMessage: (msg: ServerMessage) => void,
+  roomCode: string | null,
+  side: string,
+) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    if (!roomCode) return;
+
+    // Determine host: use API_BASE if set (production), otherwise window.location.host (dev proxy)
+    let wsUrl: string;
+    if (API_BASE) {
+      // API_BASE is like "https://api.example.com" — convert to ws(s)://
+      const url = new URL(API_BASE);
+      const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${wsProtocol}//${url.host}/ws/${roomCode}?side=${side}`;
+    } else {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${protocol}//${window.location.host}/ws/${roomCode}?side=${side}`;
+    }
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -46,7 +62,7 @@ export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
     return () => {
       ws.close();
     };
-  }, []);
+  }, [roomCode, side]);
 
   const send = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

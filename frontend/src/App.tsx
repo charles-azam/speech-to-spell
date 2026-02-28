@@ -15,7 +15,11 @@ import type {
   Verdict,
 } from "./types";
 
-function App() {
+interface AppProps {
+  roomCode: string;
+}
+
+function App({ roomCode }: AppProps) {
   // Game state from server
   const [leftHealth, setLeftHealth] = useState(100);
   const [rightHealth, setRightHealth] = useState(100);
@@ -163,7 +167,7 @@ function App() {
     }
   }, []);
 
-  const { send, connected } = useWebSocket(handleServerMessage);
+  const { send, connected } = useWebSocket(handleServerMessage, roomCode, "both");
   const sendRef = useRef(send);
   sendRef.current = send;
 

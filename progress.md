@@ -92,12 +92,50 @@
 - `TextSpellInput.tsx`: type spells directly, bypasses audio capture + STT
 - Now works with the new emoji hand system (requires emoji selection first)
 
+### Room system — multiplayer over network
+- `src/speech_to_spell/room.py`: room models (Room, PlayerInfo, PendingExplanation) + module-level registry
+  - `generate_room_code()`: unique 4-letter uppercase codes
+  - `create_room()` / `join_room()` / `fill_both_sides()`: room lifecycle
+  - `register_ws()` / `unregister_ws()` / `get_room_websockets()`: WebSocket tracking per room
+  - `cleanup_stale_rooms()`: removes rooms older than 1h
+- `main.py` refactored:
+  - REST endpoints: `POST /api/rooms` (create), `POST /api/rooms/{code}/join`, `GET /api/rooms/{code}`
+  - WebSocket endpoint changed from `/ws` to `/ws/{room_code}?side=left|right|both`
+  - Game state moved from local variable to `Room` model
+  - All `send_*` functions replaced with `broadcast_*` — sends to every WS in the room
+  - `side=both` for same-computer (1 tab, both panels, Q/P push-to-talk)
+  - `side=left|right` for multi-computer (1 tab per player, spacebar PTT)
+  - Hand filtering: remote players don't see opponent's emoji hand
+  - `player_joined` / `player_disconnected` messages for connection awareness
+  - Background task: periodic room cleanup every 5 minutes
+  - CORS configurable via `ALLOWED_ORIGINS` env var
+
+### Frontend — Lobby + Room Router
+- `GameRouter.tsx`: state machine (lobby → waiting → game) replaces direct `App` render
+  - Polls for opponent joining in waiting phase
+  - Routes to `App` (same-computer) or `RemoteGameView` (multi-computer)
+- `Lobby.tsx`: wizard name input, game mode toggle (same/different computer), create room, join room with code
+- `WaitingRoom.tsx`: shows room code (big, clickable to copy), waiting animation, cancel button
+- `RemoteGameView.tsx`: single-player view for multi-computer mode
+  - Shows own wizard (full: emoji hand, controls, transcription) + opponent (health bar only, no emoji hand)
+  - Spacebar push-to-talk (instead of Q/P)
+  - Handles `player_joined` / `player_disconnected` messages
+- `config.ts`: `API_BASE` from `VITE_API_URL` env var (empty in dev, set in production)
+- `useWebSocket.ts` updated: accepts `roomCode` + `side` params, builds URL accordingly
+- `App.tsx` updated: accepts `roomCode` prop for same-computer mode
+- `types.ts` updated: `PlayerJoinedMessage`, `PlayerDisconnectedMessage` added to `ServerMessage` union
+
+### Deployment-ready
+- Backend: configurable CORS via `ALLOWED_ORIGINS` env var
+- Frontend: `VITE_API_URL` env var for pointing at production backend
+- Ready for: Cloudflare Pages (frontend) + Hetzner VPS with systemd + nginx (backend)
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **ElevenLabs judge voice** — TTS the French comment
 - **Commentator** — separate LLM-generated play-by-play with different voice
-- **Room system** — multiplayer lobby with 4-letter codes
 - **VAD (Silero)** — not needed for turn-based
+- **Deployment configs** — systemd service file, nginx config, certbot SSL (architecture is ready, files not yet created)
 
 ## How to run
 ```bash
