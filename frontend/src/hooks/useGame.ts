@@ -18,6 +18,9 @@ export interface SpellData {
   commentary: string;
   screen_shake: number;
   color_tint: string;
+  css_animation?: string;
+  svg_filter?: string;
+  meta_effect?: string;
   actual_damage?: number;
   caster?: string;
   target?: string;

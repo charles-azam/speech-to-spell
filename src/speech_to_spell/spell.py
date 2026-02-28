@@ -21,7 +21,13 @@ RULES:
 - Write a short funny commentator line (1-2 sentences) as if you're a sports commentator for wizard duels.
 - screen_shake: 0.0 to 1.0 intensity
 - color_tint: a hex color for the screen flash (match the spell's element/theme)
-- If the transcription is empty, gibberish, or clearly not a spell, return a fizzled spell.
+
+VISUAL EFFECTS (generate based on creativity):
+- css_animation: CSS @keyframes code for a custom animation (only for creative spells 7+)
+- svg_filter: SVG filter code for visual effects (only for creative spells 7+)
+- meta_effect: special meta effect name (e.g., "invert", "pixelate", "glitch") for spells 9+
+
+If the transcription is empty, gibberish, or clearly not a spell, return a fizzled spell.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -34,7 +40,10 @@ Return ONLY valid JSON matching this schema:
   "description": "string - what the spell does in 1 sentence",
   "commentary": "string - funny commentator line",
   "screen_shake": "float 0.0-1.0",
-  "color_tint": "string - hex color like #FF4400"
+  "color_tint": "string - hex color like #FF4400",
+  "css_animation": "string - CSS @keyframes code or empty string",
+  "svg_filter": "string - SVG filter code or empty string",
+  "meta_effect": "string - special effect name or empty string"
 }
 """
 
@@ -50,6 +59,9 @@ class SpellResult(BaseModel):
     commentary: str
     screen_shake: float
     color_tint: str
+    css_animation: str = ""
+    svg_filter: str = ""
+    meta_effect: str = ""
 
 
 FIZZLED_SPELL = SpellResult(
@@ -63,6 +75,9 @@ FIZZLED_SPELL = SpellResult(
     commentary="That was... something. The crowd is confused. So is the wizard.",
     screen_shake=0.1,
     color_tint="#888888",
+    css_animation="",
+    svg_filter="",
+    meta_effect="",
 )
 
 
@@ -105,4 +120,7 @@ async def interpret_spell(transcription: str, spell_history: list[str]) -> Spell
             commentary="The spell judge seems confused... but it still counts!",
             screen_shake=0.3,
             color_tint="#AA44FF",
+            css_animation="",
+            svg_filter="",
+            meta_effect="",
         )

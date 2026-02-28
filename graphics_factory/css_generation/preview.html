@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spell preview — all spells</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #1a1a2e; color: #eee; font-family: system-ui, sans-serif; padding: 1.5rem; }
+    h1 { text-align: center; margin-bottom: 1.5rem; }
+    .spells-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem; justify-items: center; max-width: 1200px; margin: 0 auto; }
+    .spell-card { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+    .spell-title { font-size: 1rem; margin: 0; text-align: center; }
+    .preview-box { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #333 0%%, #111 100%%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+    .spell-label { font-size: 0.9rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; }
+    .no-animation-msg { color: #f88; font-size: 0.9rem; }
+    .raw-css { background: #0d0d12; padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; max-width: 100%; overflow: auto; }
+  </style>
+  <style>
+@keyframes anim_Fireball {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+  50% {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.8));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+}
+@keyframes anim_Inferno {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+  50% {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.8));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+}
+@keyframes anim_Ember_rain {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+    filter: drop-shadow(0 0 15px rgba(255, 69, 0, 0.5));
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 0 5px rgba(255, 69, 0, 0));
+  }
+}
+@keyframes anim_Frost_bolt {
+  0% {
+    transform: scale(1);
+    filter: blur(0px);
+  }
+  50% {
+    transform: scale(1.2);
+    filter: blur(2px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    filter: blur(0px);
+    opacity: 1;
+  }
+}
+@keyframes anim_Blizzard {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  50% {
+    opacity: 0.7;
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+@keyframes anim_Permafrost {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  50% {
+    opacity: 0.7;
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+@keyframes anim_Chain_lightning {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+}
+@keyframes anim_Thunder_strike {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes anim_Static_field {
+  0% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.9));
+  }
+  100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+  }
+}
+@keyframes anim_Earthquake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-10px) rotate(-5deg); }
+  50% { transform: translateX(10px) rotate(5deg); }
+  75% { transform: translateX(-5px) rotate(-2.5deg); }
+}
+@keyframes anim_Stone_skin {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(139, 69, 19, 0.5));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 10px rgba(139, 69, 19, 0.7));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(139, 69, 19, 0.5));
+  }
+}
+@keyframes anim_Chaos_orb {
+  0% {
+    transform: scale(1);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1);
+    filter: hue-rotate(90deg);
+  }
+  50% {
+    transform: scale(1);
+    filter: hue-rotate(180deg);
+  }
+  75% {
+    transform: scale(1.1);
+    filter: hue-rotate(270deg);
+  }
+  100% {
+    transform: scale(1);
+    filter: hue-rotate(360deg);
+  }
+}
+@keyframes anim_Emotional_damage {
+  0% { transform: scale(1) rotate(0deg); filter: hue-rotate(0deg); }
+  25% { transform: scale(1.1) rotate(5deg); filter: hue-rotate(30deg); }
+  50% { transform: scale(0.9) rotate(-5deg); filter: hue-rotate(-30deg); }
+  75% { transform: scale(1.05) rotate(3deg); filter: hue-rotate(15deg); }
+  100% { transform: scale(1) rotate(0deg); filter: hue-rotate(0deg); }
+}
+@keyframes anim_Rain_of_cats {
+  0% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(10deg) scale(1.1);
+  }
+  80% {
+    transform: translateY(100px) rotate(-5deg) scale(0.9);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(200px) rotate(0);
+    opacity: 0;
+  }
+}
+  </style>
+</head>
+<body>
+  <h1>Spell preview — all spells</h1>
+  <div class="spells-grid">
+
+      <section class="spell-card">
+        <h2 class="spell-title">Fireball</h2>
+        <div class="preview-box" style="animation: anim_Fireball 2s ease-in-out infinite;">
+          <span class="spell-label">Fireball</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Inferno</h2>
+        <div class="preview-box" style="animation: anim_Inferno 2s ease-in-out infinite;">
+          <span class="spell-label">Inferno</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Ember rain</h2>
+        <div class="preview-box" style="animation: anim_Ember_rain 2s ease-in-out infinite;">
+          <span class="spell-label">Ember rain</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Frost bolt</h2>
+        <div class="preview-box" style="animation: anim_Frost_bolt 2s ease-in-out infinite;">
+          <span class="spell-label">Frost bolt</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Blizzard</h2>
+        <div class="preview-box" style="animation: anim_Blizzard 2s ease-in-out infinite;">
+          <span class="spell-label">Blizzard</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Permafrost</h2>
+        <div class="preview-box" style="animation: anim_Permafrost 2s ease-in-out infinite;">
+          <span class="spell-label">Permafrost</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Chain lightning</h2>
+        <div class="preview-box" style="animation: anim_Chain_lightning 2s ease-in-out infinite;">
+          <span class="spell-label">Chain lightning</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Thunder strike</h2>
+        <div class="preview-box" style="animation: anim_Thunder_strike 2s ease-in-out infinite;">
+          <span class="spell-label">Thunder strike</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Static field</h2>
+        <div class="preview-box" style="animation: anim_Static_field 2s ease-in-out infinite;">
+          <span class="spell-label">Static field</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Earthquake</h2>
+        <div class="preview-box" style="animation: anim_Earthquake 2s ease-in-out infinite;">
+          <span class="spell-label">Earthquake</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Vine whip</h2>
+        <p class="no-animation-msg">Could not parse animation name.</p>
+        <pre class="raw-css">@vineWhip {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(20px) rotate(15deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}</pre>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Stone skin</h2>
+        <div class="preview-box" style="animation: anim_Stone_skin 2s ease-in-out infinite;">
+          <span class="spell-label">Stone skin</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Chaos orb</h2>
+        <div class="preview-box" style="animation: anim_Chaos_orb 2s ease-in-out infinite;">
+          <span class="spell-label">Chaos orb</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Emotional damage</h2>
+        <div class="preview-box" style="animation: anim_Emotional_damage 2s ease-in-out infinite;">
+          <span class="spell-label">Emotional damage</span>
+        </div>
+      </section>
+      <section class="spell-card">
+        <h2 class="spell-title">Rain of cats</h2>
+        <div class="preview-box" style="animation: anim_Rain_of_cats 2s ease-in-out infinite;">
+          <span class="spell-label">Rain of cats</span>
+        </div>
+      </section>
+  </div>
+</body>
+</html>
