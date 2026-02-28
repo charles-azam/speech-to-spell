@@ -2,14 +2,26 @@ import asyncio
 import base64
 import json
 import logging
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+
+# Project root on path so graphics_factory is importable when running via uvicorn
+_root = Path(__file__).resolve().parents[2]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 
 from speech_to_spell.game import GameState, apply_spell, format_game_context
 from speech_to_spell.sound import load_sound
 from speech_to_spell.spell import interpret_spell
 from speech_to_spell.voice import transcribe
+
+try:
+    from graphics_factory.gif_fetch import get_best_sticker
+except ImportError:
+    get_best_sticker = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -106,6 +118,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             game = apply_spell(game=game, caster=player, spell=spell)
 
             opponent = "right" if player == "left" else "left"
+            sticker_url = None
+            if get_best_sticker and spell.spell_name:
+                sticker_url = await asyncio.to_thread(
+                    get_best_sticker,
+                    spell.spell_name,
+                    limit=1,
+                )
             await websocket.send_text(json.dumps({
                 "type": "spell_result",
                 "caster": player,
@@ -115,6 +134,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "damage": spell.damage,
                 "mana_cost": spell.mana_cost,
                 "emojis": spell.emojis,
+                "sticker_url": sticker_url,
             }))
 
             await send_game_state(websocket=websocket, game=game)

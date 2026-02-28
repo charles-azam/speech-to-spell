@@ -65,6 +65,20 @@
 - Voxtral keeps its existing retry logic for transient network errors
 - ElevenLabs uses the `elevenlabs` SDK (already a dependency) with `scribe_v2` model
 
+### Klipy API (stickers and GIFs by prompt)
+- **graphics_factory/gif_fetch/tool.py**: Klipy only; `load_dotenv()`, `KLIPY_API_KEY` in .env
+  - **Stickers**: `get_sticker_list(prompt, limit)`, `get_best_sticker(prompt, limit)`
+  - **GIFs**: `get_gif_list(prompt, limit)`, `get_best_gif(prompt, limit)`
+- **scripts/get_sticker.py**: CLI — `.venv/bin/python scripts/get_sticker.py [prompt]` prints first sticker URL
+- **Backend**: `main.py` sends `sticker_url` in `spell_result` (from `get_best_sticker`)
+- **Tests**: `tests/test_sticker_fetch.py` — unit tests (mocked) + one integration test (downloads one sticker to `output_test/` when `KLIPY_API_KEY` is set)
+
+### nyuuzyou/stickers dataset (Hugging Face)
+- **scripts/pull_stickers_dataset.py**: pulls [nyuuzyou/stickers](https://huggingface.co/datasets/nyuuzyou/stickers) via `huggingface_hub`
+  - Default: `examples/` only (~1 MB). Optional `--val` adds `dataset_resized/val.zip` (128×128, ~741 MB)
+  - Output: `data/stickers/` (gitignored)
+- **docs/STICKERS_DATASET.md**: dataset layout (zips, splits, class = emoji Unicode), pull commands, and ideas for game use (subset by semantic class, RAG over class names)
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup (replacing enum-based pick)
 - Room system (multiplayer lobby)
@@ -73,13 +87,24 @@
 - VAD (Silero) — currently using push-to-talk which is fine for turn-based
 
 ## How to run
+
+Use the project’s `.venv` (create/sync with `uv sync`, then use its binaries):
+
 ```bash
+# Create/update .venv and install dependencies
+uv sync
+
 # Generate sound bank (one-time, needs ELEVENLABS_API_KEY in .env)
-uv run python scripts/generate_sounds.py
+.venv/bin/python scripts/generate_sounds.py
+
+# Optional: get first sticker URL for a prompt (needs KLIPY_API_KEY in .env)
+.venv/bin/python scripts/get_sticker.py "fireball spell"
 
 # Backend
-uv run uvicorn speech_to_spell.main:app --reload
+.venv/bin/uvicorn speech_to_spell.main:app --reload
 
 # Frontend (in another terminal)
 cd frontend && npm run dev
 ```
+
+Alternatively, use `uv run`: `uv run python scripts/get_sticker.py "fireball spell"` and `uv run uvicorn speech_to_spell.main:app --reload`.

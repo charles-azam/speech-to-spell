@@ -14,5 +14,11 @@ dist
 # Cache
 sounds_cache
 
+# Downloaded datasets
+data/
+
+# Test output
+output_test
+
 # OS
 .DS_Store

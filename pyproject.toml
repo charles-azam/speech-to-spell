@@ -9,12 +9,18 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "elevenlabs>=2.37.0",
+    "huggingface-hub>=0.28.0",
     "fastapi>=0.134.0",
     "mistralai>=1.12.4",
     "python-dotenv>=1.2.1",
+    "pytest>=8.0.0",
+    "requests>=2.32.0",
     "uvicorn[standard]>=0.41.0",
     "websockets>=16.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 [build-system]
 requires = ["uv_build>=0.9.28,<0.10.0"]
