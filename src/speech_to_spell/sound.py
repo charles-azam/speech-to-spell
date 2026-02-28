@@ -7,7 +7,13 @@ logger = logging.getLogger(__name__)
 CACHE_DIR = Path(__file__).resolve().parent.parent.parent / "sounds_cache"
 
 # Available sound IDs — must match what scripts/generate_sounds.py produces
-SOUND_IDS = ["fireball", "ice", "thunder", "dark", "nature"]
+SOUND_IDS = [
+    "fireball", "ice", "thunder", "dark", "nature",
+    "water_splash", "wind_howl", "earthquake", "healing", "poison",
+    "ghost", "metal_clash", "explosion_big", "arcane", "animal_roar",
+    "teleport", "freeze", "fire_crackle", "choir", "swarm",
+    "laughter", "cosmic", "shield", "blood", "time",
+]
 
 
 def load_sound(sound_id: str) -> bytes | None:

@@ -19,6 +19,10 @@ function playSound(base64: string) {
   });
 }
 
+const MAX_RETRIES = 20;
+const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30000;
+
 export function useWebSocket(
   onMessage: (msg: ServerMessage) => void,
   roomCode: string | null,
@@ -28,41 +32,66 @@ export function useWebSocket(
   const [connected, setConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+  const retriesRef = useRef(0);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
 
-  useEffect(() => {
-    if (!roomCode) return;
-
-    // Determine host: use API_BASE if set (production), otherwise window.location.host (dev proxy)
-    let wsUrl: string;
+  const buildWsUrl = useCallback((code: string, s: string): string => {
     if (API_BASE) {
-      // API_BASE is like "https://api.example.com" — convert to ws(s)://
       const url = new URL(API_BASE);
       const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
-      wsUrl = `${wsProtocol}//${url.host}/ws/${roomCode}?side=${side}`;
-    } else {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      wsUrl = `${protocol}//${window.location.host}/ws/${roomCode}?side=${side}`;
+      return `${wsProtocol}//${url.host}/ws/${code}?side=${s}`;
     }
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/${code}?side=${s}`;
+  }, []);
 
+  const connect = useCallback(() => {
+    if (!roomCode || unmountedRef.current) return;
+
+    const wsUrl = buildWsUrl(roomCode, side);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
+    ws.onopen = () => {
+      setConnected(true);
+      retriesRef.current = 0;
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      if (unmountedRef.current) return;
+
+      if (retriesRef.current < MAX_RETRIES) {
+        const delay = Math.min(BASE_DELAY_MS * 2 ** retriesRef.current, MAX_DELAY_MS);
+        retriesRef.current += 1;
+        reconnectTimeoutRef.current = setTimeout(connect, delay);
+      }
+    };
+
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as ServerMessage;
-      // Play sound immediately, outside React's render cycle
       if (msg.type === "sound_effect") {
         playSound(msg.audio);
         return;
       }
       onMessageRef.current(msg);
     };
+  }, [roomCode, side, buildWsUrl]);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    connect();
 
     return () => {
-      ws.close();
+      unmountedRef.current = true;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      wsRef.current?.close();
     };
-  }, [roomCode, side]);
+  }, [connect]);
 
   const send = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

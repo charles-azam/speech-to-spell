@@ -7,7 +7,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -117,6 +117,11 @@ def api_create_room(body: CreateRoomRequest) -> CreateRoomResponse:
 
 @app.post("/api/rooms/{code}/join")
 def api_join_room(code: str, body: JoinRoomRequest) -> JoinRoomResponse:
+    room = get_room(code=code.upper())
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if "right" in room.players:
+        raise HTTPException(status_code=409, detail="Room is full")
     room, side = join_room(code=code.upper(), wizard_name=body.wizard_name)
     return JoinRoomResponse(room_code=room.code, side=side)
 
@@ -125,7 +130,7 @@ def api_join_room(code: str, body: JoinRoomRequest) -> JoinRoomResponse:
 def api_room_status(code: str) -> RoomStatusResponse:
     room = get_room(code=code.upper())
     if room is None:
-        raise ValueError(f"Room {code} not found")
+        raise HTTPException(status_code=404, detail="Room not found")
     return RoomStatusResponse(
         room_code=room.code,
         players={side: info.model_dump() for side, info in room.players.items()},
@@ -140,8 +145,15 @@ async def broadcast_to_room(room_code: str, message: dict[str, Any]) -> None:
     """Send a message to all WebSocket connections in a room."""
     websockets = get_room_websockets(code=room_code)
     raw = json.dumps(message)
-    for ws in websockets.values():
-        await ws.send_text(raw)
+    dead_sides: list[str] = []
+    for side_key, ws in websockets.items():
+        try:
+            await ws.send_text(raw)
+        except Exception:
+            logger.warning(f"Dead WebSocket in room {room_code} side={side_key}, unregistering")
+            dead_sides.append(side_key)
+    for side_key in dead_sides:
+        unregister_ws(code=room_code, side=side_key)
 
 
 async def broadcast_game_state(room: Room) -> None:
@@ -151,6 +163,7 @@ async def broadcast_game_state(room: Room) -> None:
 
     game = room.game
     websockets = get_room_websockets(code=room.code)
+    dead_sides: list[str] = []
 
     for side, ws in websockets.items():
         if side == "both":
@@ -160,10 +173,12 @@ async def broadcast_game_state(room: Room) -> None:
                 "left": {
                     "health": game.left.health,
                     "emoji_hand": game.left.emoji_hand,
+                    "spells_cast": game.left.spells_cast,
                 },
                 "right": {
                     "health": game.right.health,
                     "emoji_hand": game.right.emoji_hand,
+                    "spells_cast": game.right.spells_cast,
                 },
                 "turn_number": game.turn_number,
                 "winner": game.winner,
@@ -178,15 +193,24 @@ async def broadcast_game_state(room: Room) -> None:
                 "left" if side == "left" else "right": {
                     "health": own_state.health,
                     "emoji_hand": own_state.emoji_hand,
+                    "spells_cast": own_state.spells_cast,
                 },
                 opponent: {
                     "health": opp_state.health,
                     "emoji_hand": [],  # Hidden
+                    "spells_cast": opp_state.spells_cast,
                 },
                 "turn_number": game.turn_number,
                 "winner": game.winner,
             }
-        await ws.send_text(json.dumps(msg))
+        try:
+            await ws.send_text(json.dumps(msg))
+        except Exception:
+            logger.warning(f"Dead WebSocket in room {room.code} side={side}, unregistering")
+            dead_sides.append(side)
+
+    for side_key in dead_sides:
+        unregister_ws(code=room.code, side=side_key)
 
 
 async def broadcast_judge_verdict(
@@ -280,8 +304,8 @@ async def process_spell(
     )
 
     if verdict.verdict == "EXPLAIN" and explanation is None:
-        # First EXPLAIN — store context, wait for player's explanation
-        room.pending_explanation = PendingExplanation(
+        # First EXPLAIN — store context per player, wait for player's explanation
+        room.pending_explanations[player] = PendingExplanation(
             player=player,
             selected_emojis=selected_emojis,
             transcription=transcription,
@@ -307,8 +331,8 @@ async def process_spell(
     # Send updated game state
     await broadcast_game_state(room=room)
 
-    # Clear pending explanation
-    room.pending_explanation = None
+    # Clear pending explanation for this player
+    room.pending_explanations.pop(player, None)
 
 
 # --- WebSocket endpoint ---
@@ -380,22 +404,20 @@ async def websocket_endpoint(
                     player_hand=player_state.emoji_hand,
                 )
                 if error:
-                    await websocket.send_text(json.dumps({
-                        "type": "spell_fizzle",
-                        "player": player,
-                        "reason": error,
-                    }))
+                    await broadcast_to_room(
+                        room_code=room_code,
+                        message={"type": "spell_fizzle", "player": player, "reason": error},
+                    )
                     continue
 
                 # Get transcription from audio or text
                 if "audio" in message:
                     audio_bytes = base64.b64decode(message["audio"])
                     if len(audio_bytes) < 1000:
-                        await websocket.send_text(json.dumps({
-                            "type": "spell_fizzle",
-                            "player": player,
-                            "reason": "Parle plus fort, sorcier !",
-                        }))
+                        await broadcast_to_room(
+                            room_code=room_code,
+                            message={"type": "spell_fizzle", "player": player, "reason": "Parle plus fort, sorcier !"},
+                        )
                         continue
                     text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
                     await broadcast_to_room(
@@ -407,11 +429,10 @@ async def websocket_endpoint(
                         },
                     )
                     if not text.strip():
-                        await websocket.send_text(json.dumps({
-                            "type": "spell_fizzle",
-                            "player": player,
-                            "reason": "Le juge n'a rien entendu...",
-                        }))
+                        await broadcast_to_room(
+                            room_code=room_code,
+                            message={"type": "spell_fizzle", "player": player, "reason": "Le juge n'a rien entendu..."},
+                        )
                         continue
                 elif "text" in message:
                     text = message["text"]
@@ -438,11 +459,11 @@ async def websocket_endpoint(
                 )
 
             elif msg_type == "explain_spell":
-                if room.pending_explanation is None:
-                    logger.warning("Received explain_spell but no pending explanation")
+                player = message.get("player", side if side != "both" else "left")
+                pending = room.pending_explanations.get(player)
+                if pending is None:
+                    logger.warning(f"Received explain_spell for {player} but no pending explanation")
                     continue
-
-                player = room.pending_explanation.player
 
                 # Get explanation from audio or text
                 if "audio" in message:
@@ -463,7 +484,6 @@ async def websocket_endpoint(
 
                 logger.info(f"Explanation from {player}: {explanation_text!r}")
 
-                pending = room.pending_explanation
                 await process_spell(
                     room=room,
                     player=pending.player,
@@ -487,11 +507,10 @@ async def websocket_endpoint(
                     player_hand=player_state.emoji_hand,
                 )
                 if error:
-                    await websocket.send_text(json.dumps({
-                        "type": "spell_fizzle",
-                        "player": player,
-                        "reason": error,
-                    }))
+                    await broadcast_to_room(
+                        room_code=room_code,
+                        message={"type": "spell_fizzle", "player": player, "reason": error},
+                    )
                     continue
 
                 await broadcast_to_room(

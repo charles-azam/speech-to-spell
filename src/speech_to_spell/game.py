@@ -28,7 +28,7 @@ EMOJI_BANK = [
     # Fantasy & Symbols
     "💀", "👻", "👽", "🤖", "👾", "😈", "👿", "💩", "🧙", "🧛",
     "🧟", "🧞", "🧜", "🧚", "👼", "🦸", "🦹", "🥷", "🏴‍☠️", "⚓",
-    "🪦", "⚰️", "🔱", "⚜️", "🏺", "🗿", "🪬", "🧿", "🪶", "🐚",
+    "🪦", "⚰️", "🔱", "⚜️", "🏺", "🗿", "🪬", "🪶", "🐚",
     # Hearts & Energy
     "❤️", "🖤", "💜", "💙", "💚", "💛", "🤍", "💔", "❤️‍🔥", "💝",
     "💗", "💖", "💞", "🫀", "🧠", "👁️", "👀", "🦴", "💪", "🤝",
@@ -73,10 +73,11 @@ def consume_and_refill(game: GameState, player: str, used_emojis: list[str]) -> 
         if emoji in remaining:
             remaining.remove(emoji)
 
-    # Refill to HAND_SIZE with new random emojis
+    # Refill to HAND_SIZE with new random emojis (avoid duplicates with remaining hand)
     needed = HAND_SIZE - len(remaining)
     if needed > 0:
-        new_emojis = random.sample(EMOJI_BANK, k=min(needed, len(EMOJI_BANK)))
+        available = [e for e in EMOJI_BANK if e not in remaining]
+        new_emojis = random.sample(available, k=min(needed, len(available)))
         remaining.extend(new_emojis)
 
     player_state.emoji_hand = remaining

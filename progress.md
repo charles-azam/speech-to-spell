@@ -76,7 +76,7 @@
 - Record button pulse animation
 
 ### Sound effects — pre-generated bank
-- 5 sounds: fireball, ice, thunder, dark, nature
+- 25 sounds: fireball, ice, thunder, dark, nature, water_splash, wind_howl, earthquake, healing, poison, ghost, metal_clash, explosion_big, arcane, animal_roar, teleport, freeze, fire_crackle, choir, swarm, laughter, cosmic, shield, blood, time
 - Generated offline via `scripts/generate_sounds.py` (ElevenLabs API)
 - Instant lookup at runtime
 
@@ -129,6 +129,35 @@
 - Backend: configurable CORS via `ALLOWED_ORIGINS` env var
 - Frontend: `VITE_API_URL` env var for pointing at production backend
 - Ready for: Cloudflare Pages (frontend) + Hetzner VPS with systemd + nginx (backend)
+
+### Bug fixes & polish pass (post-room-system)
+
+#### Bugs fixed
+- **Duplicate emojis in hand**: removed duplicate `🧿` from EMOJI_BANK; `consume_and_refill()` now filters out emojis already in remaining hand before sampling
+- **pending_explanation race condition**: changed from single `pending_explanation` slot to `pending_explanations: dict[str, PendingExplanation]` keyed by player side — both players can have pending explanations simultaneously
+- **Eager LLM client init**: `spell.py` and `voice.py` now use lazy singleton getters (`_get_mistral_client()`, etc.) — modules import without API keys, clients created on first use
+- **broadcast_to_room crash propagation**: each `ws.send_text()` wrapped in error handling, dead sockets are logged and unregistered without affecting other clients
+- **Spell fizzle not broadcast**: all spell fizzle messages now broadcast to room (both players see when a spell fails), not just unicast to caster
+- **broadcast_game_state robustness**: same error handling pattern as broadcast_to_room
+
+#### Game balance
+- **Damage range reduced**: 1-50 → 1-30 (creative=15-30, classic=5-15, mediocre=1-5), games now last 4-8 turns instead of 2
+- **Screen shake threshold**: lowered from ≥20 to ≥15 to match new range
+- **Visual params rescaled**: particle count, scale, duration use 30 as divisor
+
+#### Code quality — Frontend refactor
+- **`useGameState.ts` hook**: centralized game state via `useReducer` — handles all `ServerMessage` types, side-effect timeouts for screen shake/visual/spell cleanup
+- **`PlayerControls.tsx`**: extracted reusable component (EmojiHand + MicSelector + TextSpellInput + explain prompt)
+- **`SpellHistory.tsx`**: scrollable list of cast spell names (most recent first, fading opacity)
+- **`App.tsx` rewritten**: uses `useGameState` + `PlayerControls` + `SpellHistory`, ~170 lines (was ~420)
+- **`RemoteGameView.tsx` rewritten**: same hooks, ~210 lines (was ~390)
+- **Total duplication eliminated**: ~800 lines → ~380 lines with shared hooks/components
+
+#### New features
+- **Spell history UI**: server now includes `spells_cast` in game_state broadcast; `SpellHistory` component shows cast spells below health bar
+- **WebSocket reconnection**: exponential backoff (1s→2s→4s→...→30s cap), max 20 retries, auto-reset on success
+- **Sound bank expanded**: 5 → 25 sounds (water_splash, wind_howl, earthquake, healing, poison, ghost, metal_clash, explosion_big, arcane, animal_roar, teleport, freeze, fire_crackle, choir, swarm, laughter, cosmic, shield, blood, time)
+- **ExplainSpellMessage now includes `player` field**: frontend sends which player is explaining, fixing the per-player EXPLAIN flow
 
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup

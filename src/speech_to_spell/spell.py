@@ -18,22 +18,43 @@ logger = logging.getLogger(__name__)
 SPELL_PROVIDER: Literal["mistral", "aws", "huggingface"] = "mistral"
 
 # --- Mistral (direct) ---
-_mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+_mistral_client: Mistral | None = None
 MISTRAL_MODEL = "ministral-8b-latest"
 
 # --- AWS Bedrock (OpenAI-compatible) ---
-_aws_client = OpenAI(
-    base_url="https://bedrock-mantle.us-west-2.api.aws/v1",
-    api_key=os.environ.get("AWS_BEARER_TOKEN_BEDROCK", ""),
-)
+_aws_client: OpenAI | None = None
 AWS_MODEL = "mistral.ministral-8b-2410-v1:0"
 
 # --- HuggingFace GPT-OSS 120B ---
-_hf_client = OpenAI(
-    base_url="https://router.huggingface.co/v1",
-    api_key=os.environ.get("HUGGINGFACE_API_KEY", ""),
-)
+_hf_client: OpenAI | None = None
 HF_MODEL = "openai/gpt-oss-120b:cerebras"
+
+
+def _get_mistral_client() -> Mistral:
+    global _mistral_client
+    if _mistral_client is None:
+        _mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+    return _mistral_client
+
+
+def _get_aws_client() -> OpenAI:
+    global _aws_client
+    if _aws_client is None:
+        _aws_client = OpenAI(
+            base_url="https://bedrock-mantle.us-west-2.api.aws/v1",
+            api_key=os.environ["AWS_BEARER_TOKEN_BEDROCK"],
+        )
+    return _aws_client
+
+
+def _get_hf_client() -> OpenAI:
+    global _hf_client
+    if _hf_client is None:
+        _hf_client = OpenAI(
+            base_url="https://router.huggingface.co/v1",
+            api_key=os.environ["HUGGINGFACE_API_KEY"],
+        )
+    return _hf_client
 
 # --- Valid templates for visual effects ---
 
@@ -89,7 +110,7 @@ JUDGE_SPELL_TOOL = {
                 },
                 "damage": {
                     "type": "integer",
-                    "description": "Dégâts ou soin (1-50). Créatif=haut, ennuyeux=bas. Seulement si YES.",
+                    "description": "Dégâts ou soin (1-30). Créatif=haut, ennuyeux=bas. Seulement si YES.",
                 },
                 "sound_id": {
                     "type": "string",
@@ -151,9 +172,9 @@ C'est TOI qui décides si le sort est une attaque (target=attack) ou un soin (ta
 - En cas de doute → attack (c'est un duel après tout)
 
 ## Règles de dégâts/soin (quand YES)
-- Sort créatif et cohérent : 25-50
-- Sort correct mais classique : 10-25
-- Sort médiocre mais accepté : 1-10
+- Sort créatif et cohérent : 15-30
+- Sort correct mais classique : 5-15
+- Sort médiocre mais accepté : 1-5
 
 ## Ton style de commentaire
 Varie tes formulations ! Exemples de styles :
@@ -215,12 +236,12 @@ def _parse_judge_tool(args: dict) -> JudgeVerdict:
     target = args.get("target", "attack")
     if target not in ("attack", "heal"):
         target = "attack"
-    damage = max(0, min(50, args.get("damage", 0)))
+    damage = max(0, min(30, args.get("damage", 0)))
 
     # Derive visual params from damage
-    particle_count = 15 + int(damage * 0.7)  # 15-50
-    scale = 0.6 + damage / 50 * 1.4          # 0.6-2.0
-    duration_s = 1.5 + damage / 50 * 1.5     # 1.5-3.0
+    particle_count = 15 + int(damage * 1.17)  # 15-50
+    scale = 0.6 + damage / 30 * 1.4           # 0.6-2.0
+    duration_s = 1.5 + damage / 30 * 1.5      # 1.5-3.0
 
     template = args.get("template", "explosion")
     if template not in VALID_TEMPLATES:
@@ -297,7 +318,7 @@ def _build_user_message(
 
 def _interpret_mistral(user_content: str) -> JudgeVerdict:
     """Interpret spell via Mistral SDK (direct)."""
-    response = _mistral_client.chat.complete(
+    response = _get_mistral_client().chat.complete(
         model=MISTRAL_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -344,6 +365,6 @@ def interpret_spell(
     if SPELL_PROVIDER == "mistral":
         return _interpret_mistral(user_content=user_content)
     elif SPELL_PROVIDER == "aws":
-        return _interpret_openai(client=_aws_client, model=AWS_MODEL, user_content=user_content)
+        return _interpret_openai(client=_get_aws_client(), model=AWS_MODEL, user_content=user_content)
     else:
-        return _interpret_openai(client=_hf_client, model=HF_MODEL, user_content=user_content)
+        return _interpret_openai(client=_get_hf_client(), model=HF_MODEL, user_content=user_content)

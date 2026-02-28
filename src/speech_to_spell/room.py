@@ -27,7 +27,7 @@ class Room(BaseModel):
     code: str
     players: dict[str, PlayerInfo]  # side -> PlayerInfo
     game: GameState | None = None
-    pending_explanation: PendingExplanation | None = None
+    pending_explanations: dict[str, PendingExplanation] = {}
     created_at: float
 
 

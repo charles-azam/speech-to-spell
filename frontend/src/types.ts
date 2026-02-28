@@ -42,8 +42,8 @@ export interface JudgeVerdictMessage {
 
 export interface GameStateMessage {
   type: "game_state";
-  left: { health: number; emoji_hand: string[] };
-  right: { health: number; emoji_hand: string[] };
+  left: { health: number; emoji_hand: string[]; spells_cast?: string[] };
+  right: { health: number; emoji_hand: string[]; spells_cast?: string[] };
   turn_number: number;
   winner: string | null;
 }
@@ -89,6 +89,7 @@ export interface CastSpellMessage {
 
 export interface ExplainSpellMessage {
   type: "explain_spell";
+  player: PlayerSide;
   audio?: string;
   text?: string;
 }

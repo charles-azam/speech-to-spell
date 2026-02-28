@@ -1,171 +1,36 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { WizardPanel } from "./components/WizardPanel";
-import { EmojiHand } from "./components/EmojiHand";
 import { JudgePanel } from "./components/JudgePanel";
 import { AmbientSparkles } from "./components/AmbientSparkles";
-import { TextSpellInput } from "./components/TextSpellInput";
-import { MicSelector } from "./components/MicSelector";
+import { PlayerControls } from "./components/PlayerControls";
+import { SpellHistory } from "./components/SpellHistory";
 import { useWebSocket } from "./hooks/useWebSocket";
+import { useGameState } from "./hooks/useGameState";
 import { useMicrophone } from "./hooks/useMicrophone";
 import { useAudioDevices } from "./hooks/useAudioDevices";
-import type {
-  PlayerSide,
-  ServerMessage,
-  VisualEffect,
-  Verdict,
-} from "./types";
+import { useState } from "react";
+import type { PlayerSide } from "./types";
 
 interface AppProps {
   roomCode: string;
 }
 
 function App({ roomCode }: AppProps) {
-  // Game state from server
-  const [leftHealth, setLeftHealth] = useState(100);
-  const [rightHealth, setRightHealth] = useState(100);
-  const [leftHand, setLeftHand] = useState<string[]>([]);
-  const [rightHand, setRightHand] = useState<string[]>([]);
-  const [winner, setWinner] = useState<string | null>(null);
-
-  // Per-player independent selection state
-  const [leftSelectedEmojis, setLeftSelectedEmojis] = useState<string[]>([]);
-  const [rightSelectedEmojis, setRightSelectedEmojis] = useState<string[]>([]);
-
-  // Per-player mic device
+  const { state, dispatch, handleServerMessage } = useGameState();
   const { devices } = useAudioDevices();
   const [leftDeviceId, setLeftDeviceId] = useState("");
   const [rightDeviceId, setRightDeviceId] = useState("");
 
-  // Per-player explain phase tracking
-  const explainPlayerRef = useRef<PlayerSide | null>(null);
-
-  // Transcriptions
-  const [leftTranscription, setLeftTranscription] = useState<string | null>(null);
-  const [rightTranscription, setRightTranscription] = useState<string | null>(null);
-
-  // Visual effects
-  const [leftSpellName, setLeftSpellName] = useState<string | null>(null);
-  const [rightSpellName, setRightSpellName] = useState<string | null>(null);
-  const [leftColor, setLeftColor] = useState<string | null>(null);
-  const [rightColor, setRightColor] = useState<string | null>(null);
-  const [leftVisualEffect, setLeftVisualEffect] = useState<VisualEffect | null>(null);
-  const [rightVisualEffect, setRightVisualEffect] = useState<VisualEffect | null>(null);
-  const [screenShake, setScreenShake] = useState(false);
-
-  // Judge state
-  const [judgeVerdict, setJudgeVerdict] = useState<Verdict | null>(null);
-  const [judgeComment, setJudgeComment] = useState<string | null>(null);
-  const [judgeWaiting, setJudgeWaiting] = useState(false);
-  const [judgeSpellName, setJudgeSpellName] = useState<string | null>(null);
-  const [judgeDamage, setJudgeDamage] = useState<number | null>(null);
-
-  // Processing state (waiting for transcription)
-  const [leftProcessing, setLeftProcessing] = useState(false);
-  const [rightProcessing, setRightProcessing] = useState(false);
-
   // Push-to-talk: track which player is currently recording
   const activePlayerRef = useRef<PlayerSide | null>(null);
 
-  // Refs for latest state (needed in callbacks)
-  const leftSelectedEmojisRef = useRef(leftSelectedEmojis);
-  leftSelectedEmojisRef.current = leftSelectedEmojis;
-  const rightSelectedEmojisRef = useRef(rightSelectedEmojis);
-  rightSelectedEmojisRef.current = rightSelectedEmojis;
+  // Refs for latest state needed in callbacks
   const leftDeviceIdRef = useRef(leftDeviceId);
   leftDeviceIdRef.current = leftDeviceId;
   const rightDeviceIdRef = useRef(rightDeviceId);
   rightDeviceIdRef.current = rightDeviceId;
-
-  const handleServerMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === "transcription") {
-      if (msg.player === "left") {
-        setLeftTranscription(msg.text);
-        setLeftProcessing(false);
-      } else {
-        setRightTranscription(msg.text);
-        setRightProcessing(false);
-      }
-      // STT done — now the LLM judge is evaluating
-      setJudgeWaiting(true);
-      setJudgeVerdict(null);
-      setJudgeComment(null);
-      setJudgeSpellName(null);
-      setJudgeDamage(null);
-    } else if (msg.type === "spell_fizzle") {
-      const fizzleMsg = msg.reason ?? "Ton sort s'est dissipe...";
-      if (msg.player === "left") {
-        setLeftTranscription(fizzleMsg);
-        setLeftProcessing(false);
-      } else {
-        setRightTranscription(fizzleMsg);
-        setRightProcessing(false);
-      }
-      setJudgeWaiting(false);
-    } else if (msg.type === "judge_verdict") {
-      setJudgeWaiting(false);
-      setJudgeVerdict(msg.verdict);
-      setJudgeComment(msg.comment);
-      setJudgeSpellName(msg.spell_name);
-      setJudgeDamage(msg.damage);
-
-      if (msg.verdict === "YES" && msg.visual_effect) {
-        const primaryColor = msg.visual_effect.primary_color;
-        if (msg.caster === "left") {
-          setLeftSpellName(msg.spell_name);
-        } else {
-          setRightSpellName(msg.spell_name);
-        }
-        if (msg.target === "left") {
-          setLeftColor(primaryColor);
-          setLeftVisualEffect(msg.visual_effect);
-          const cleanupMs = (msg.visual_effect.duration_s + 1) * 1000;
-          setTimeout(() => {
-            setLeftVisualEffect(null);
-            setLeftColor(null);
-            setLeftSpellName(null);
-          }, cleanupMs);
-        } else {
-          setRightColor(primaryColor);
-          setRightVisualEffect(msg.visual_effect);
-          const cleanupMs = (msg.visual_effect.duration_s + 1) * 1000;
-          setTimeout(() => {
-            setRightVisualEffect(null);
-            setRightColor(null);
-            setRightSpellName(null);
-          }, cleanupMs);
-        }
-
-        if (msg.damage >= 20) {
-          setScreenShake(true);
-          setTimeout(() => setScreenShake(false), 500);
-        }
-      }
-
-      if (msg.verdict === "EXPLAIN" && explainPlayerRef.current === null) {
-        // Store which player needs to explain
-        explainPlayerRef.current = msg.caster;
-      } else {
-        // Verdict resolved — clear that player's selected emojis
-        const caster = msg.caster;
-        explainPlayerRef.current = null;
-        setTimeout(() => {
-          if (caster === "left") {
-            setLeftSelectedEmojis([]);
-            setLeftTranscription(null);
-          } else {
-            setRightSelectedEmojis([]);
-            setRightTranscription(null);
-          }
-        }, 4000);
-      }
-    } else if (msg.type === "game_state") {
-      setLeftHealth(msg.left.health);
-      setRightHealth(msg.right.health);
-      setLeftHand(msg.left.emoji_hand);
-      setRightHand(msg.right.emoji_hand);
-      setWinner(msg.winner);
-    }
-  }, []);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const { send, connected } = useWebSocket(handleServerMessage, roomCode, "both");
   const sendRef = useRef(send);
@@ -173,68 +38,58 @@ function App({ roomCode }: AppProps) {
 
   // Clear stuck states when connection drops
   useEffect(() => {
-    if (!connected) {
-      setJudgeWaiting(false);
-      setLeftProcessing(false);
-      setRightProcessing(false);
-    }
-  }, [connected]);
+    if (!connected) dispatch({ type: "connection_lost" });
+  }, [connected, dispatch]);
 
   const handleRecordingComplete = useCallback(
     (audioBase64: string) => {
       const player = activePlayerRef.current;
       if (!player) return;
 
-      if (player === "left") setLeftProcessing(true);
-      else setRightProcessing(true);
+      dispatch({ type: "set_processing", player, value: true });
 
-      if (explainPlayerRef.current === player) {
-        sendRef.current({ type: "explain_spell", audio: audioBase64 });
+      const s = stateRef.current;
+      if (s.explainPlayer === player) {
+        sendRef.current({ type: "explain_spell", player, audio: audioBase64 });
       } else {
-        const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
+        const emojis = s[player].selectedEmojis;
         sendRef.current({ type: "cast_spell", player, selected_emojis: emojis, audio: audioBase64 });
       }
     },
-    [],
+    [dispatch],
   );
 
   const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
 
   const handleTextSpell = useCallback(
     (player: PlayerSide, text: string) => {
-      if (player === "left") setLeftProcessing(true);
-      else setRightProcessing(true);
+      dispatch({ type: "set_processing", player, value: true });
+      const s = stateRef.current;
 
-      if (explainPlayerRef.current === player) {
-        send({ type: "explain_spell", text });
+      if (s.explainPlayer === player) {
+        send({ type: "explain_spell", player, text });
       } else {
-        const emojis = player === "left" ? leftSelectedEmojisRef.current : rightSelectedEmojisRef.current;
+        const emojis = s[player].selectedEmojis;
         send({ type: "text_spell", player, selected_emojis: emojis, text });
       }
     },
-    [send],
+    [send, dispatch],
   );
 
-  const handleLeftEmojiToggle = useCallback((emoji: string) => {
-    setLeftSelectedEmojis((prev) =>
-      prev.includes(emoji) ? prev.filter((e) => e !== emoji) : [...prev, emoji],
-    );
-  }, []);
-
-  const handleRightEmojiToggle = useCallback((emoji: string) => {
-    setRightSelectedEmojis((prev) =>
-      prev.includes(emoji) ? prev.filter((e) => e !== emoji) : [...prev, emoji],
-    );
-  }, []);
+  const handleEmojiToggle = useCallback(
+    (player: PlayerSide, emoji: string) => {
+      dispatch({ type: "toggle_emoji", player, emoji });
+    },
+    [dispatch],
+  );
 
   // Push-to-talk: Q for left, P for right
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if typing in an input/textarea
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (winner) return;
-      if (recording) return; // Already recording
+      if (state.winner) return;
+      if (recording) return;
 
       const key = e.key.toLowerCase();
       if (key === "q") {
@@ -265,59 +120,51 @@ function App({ roomCode }: AppProps) {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [recording, winner, startRecording, stopRecording]);
+  }, [recording, state.winner, startRecording, stopRecording]);
 
-  // Controls for each player — always visible
-  const renderControls = (side: PlayerSide) => {
-    if (winner) return null;
-
-    const hand = side === "left" ? leftHand : rightHand;
-    const selectedEmojis = side === "left" ? leftSelectedEmojis : rightSelectedEmojis;
-    const onToggle = side === "left" ? handleLeftEmojiToggle : handleRightEmojiToggle;
-    const isExplaining = explainPlayerRef.current === side;
+  const renderColumn = (side: PlayerSide) => {
+    const ps = state[side];
+    const name = side === "left" ? "Wizard 1" : "Wizard 2";
+    const keyBind = side === "left" ? "Q" : "P";
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
 
     return (
-      <div className="flex flex-col gap-3 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-        {/* Mic selector */}
-        {devices.length > 1 && (
-          <MicSelector
+      <div className="flex flex-col gap-4">
+        <WizardPanel
+          side={side}
+          name={name}
+          keyBind={keyBind}
+          recording={recording && activePlayerRef.current === side}
+          transcription={ps.transcription}
+          processing={ps.processing}
+          spellName={ps.spellName}
+          hitColor={ps.hitColor}
+          health={ps.health}
+          visualEffect={ps.visualEffect}
+        />
+        <SpellHistory spells={ps.spellsCast} />
+        {!state.winner && (
+          <PlayerControls
+            side={side}
+            hand={ps.hand}
+            selectedEmojis={ps.selectedEmojis}
+            onToggle={(emoji) => handleEmojiToggle(side, emoji)}
+            isExplaining={state.explainPlayer === side}
+            keyBind={keyBind}
+            disabled={false}
             devices={devices}
-            value={deviceId}
-            onChange={onDeviceChange}
+            deviceId={deviceId}
+            onDeviceChange={onDeviceChange}
+            onTextCast={handleTextSpell}
           />
         )}
-
-        <EmojiHand
-          emojis={hand}
-          selectedEmojis={selectedEmojis}
-          onToggle={onToggle}
-          disabled={false}
-        />
-
-        {/* Explain prompt */}
-        {isExplaining && (
-          <p
-            className="text-sm text-center"
-            style={{ fontFamily: "'Crimson Pro', serif", fontStyle: "italic", color: "var(--amber-warn)" }}
-          >
-            Le juge veut une explication ! Maintiens [{side === "left" ? "Q" : "P"}] pour justifier ton sort.
-          </p>
-        )}
-
-        {/* Text input */}
-        <TextSpellInput
-          side={side}
-          onCast={handleTextSpell}
-          disabled={selectedEmojis.length < 2 && !isExplaining}
-        />
       </div>
     );
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${screenShake ? "animate-screen-shake" : ""}`}>
+    <div className={`min-h-screen flex flex-col ${state.screenShake ? "animate-screen-shake" : ""}`}>
       <AmbientSparkles />
 
       {/* Header */}
@@ -346,14 +193,13 @@ function App({ roomCode }: AppProps) {
             </span>
           </div>
         </div>
-        {/* Ornamental rule */}
         <div className="ornate-rule mt-3 max-w-md mx-auto">
           <span style={{ color: "var(--gold-dim)", fontSize: "10px" }}>{"\u2726"} {"\u2726"} {"\u2726"}</span>
         </div>
       </header>
 
       {/* Winner banner */}
-      {winner && (
+      {state.winner && (
         <div className="text-center py-6 relative z-10">
           <p
             className="text-4xl font-bold animate-pulse tracking-[0.1em]"
@@ -363,7 +209,7 @@ function App({ roomCode }: AppProps) {
               textShadow: "0 0 40px rgba(201, 168, 76, 0.5), 0 0 80px rgba(201, 168, 76, 0.25)",
             }}
           >
-            {winner === "left" ? "Wizard 1" : "Wizard 2"} Triomphe !
+            {state.winner === "left" ? "Wizard 1" : "Wizard 2"} Triomphe !
           </p>
         </div>
       )}
@@ -371,48 +217,15 @@ function App({ roomCode }: AppProps) {
       {/* Arena */}
       <main className="flex-1 flex items-start justify-center px-6 pb-8 relative z-10">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-6 w-full max-w-6xl items-start">
-          {/* Player 1 column */}
-          <div className="flex flex-col gap-4">
-            <WizardPanel
-              side="left"
-              name="Wizard 1"
-              keyBind="Q"
-              recording={recording && activePlayerRef.current === "left"}
-              transcription={leftTranscription}
-              processing={leftProcessing}
-              spellName={leftSpellName}
-              hitColor={leftColor}
-              health={leftHealth}
-              visualEffect={leftVisualEffect}
-            />
-            {renderControls("left")}
-          </div>
-
-          {/* Judge Panel (center) */}
+          {renderColumn("left")}
           <JudgePanel
-            verdict={judgeVerdict}
-            comment={judgeComment}
-            waiting={judgeWaiting}
-            spellName={judgeSpellName}
-            damage={judgeDamage}
+            verdict={state.judge.verdict}
+            comment={state.judge.comment}
+            waiting={state.judge.waiting}
+            spellName={state.judge.spellName}
+            damage={state.judge.damage}
           />
-
-          {/* Player 2 column */}
-          <div className="flex flex-col gap-4">
-            <WizardPanel
-              side="right"
-              name="Wizard 2"
-              keyBind="P"
-              recording={recording && activePlayerRef.current === "right"}
-              transcription={rightTranscription}
-              processing={rightProcessing}
-              spellName={rightSpellName}
-              hitColor={rightColor}
-              health={rightHealth}
-              visualEffect={rightVisualEffect}
-            />
-            {renderControls("right")}
-          </div>
+          {renderColumn("right")}
         </div>
       </main>
     </div>
