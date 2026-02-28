@@ -1,8 +1,10 @@
 import logging
 import os
 import time
+from typing import Literal
 
 from dotenv import load_dotenv
+from elevenlabs import ElevenLabs
 from httpx import ConnectError, RemoteProtocolError
 from mistralai import Mistral
 
@@ -10,18 +12,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+_mistral_client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
+_elevenlabs_client = ElevenLabs(api_key=os.environ.get("ELEVENLABS_API_KEY", ""))
 
 VOXTRAL_MODEL = "voxtral-mini-latest"
-
 MAX_RETRIES = 2
 
+STT_PROVIDER: Literal["voxtral", "elevenlabs"] = os.environ.get("STT_PROVIDER", "voxtral")  # type: ignore[assignment]
 
-def transcribe(audio_bytes: bytes, file_name: str = "recording.webm") -> str:
-    """Transcribe audio bytes using Voxtral. Retries once on transient network errors."""
+
+def _transcribe_voxtral(audio_bytes: bytes, file_name: str) -> str:
+    """Transcribe audio bytes using Voxtral. Retries on transient network errors."""
     for attempt in range(MAX_RETRIES + 1):
         try:
-            response = _client.audio.transcriptions.complete(
+            response = _mistral_client.audio.transcriptions.complete(
                 model=VOXTRAL_MODEL,
                 file={
                     "content": audio_bytes,
@@ -37,3 +41,19 @@ def transcribe(audio_bytes: bytes, file_name: str = "recording.webm") -> str:
                 logger.error(f"Transcription failed after {MAX_RETRIES + 1} attempts: {e}")
                 return ""
     return ""
+
+
+def _transcribe_elevenlabs(audio_bytes: bytes, file_name: str) -> str:
+    """Transcribe audio bytes using ElevenLabs Scribe v2."""
+    response = _elevenlabs_client.speech_to_text.convert(
+        file=(file_name, audio_bytes),
+        model_id="scribe_v2",
+    )
+    return response.text or ""
+
+
+def transcribe(audio_bytes: bytes, file_name: str = "recording.webm") -> str:
+    """Transcribe audio bytes using the configured STT provider."""
+    if STT_PROVIDER == "elevenlabs":
+        return _transcribe_elevenlabs(audio_bytes=audio_bytes, file_name=file_name)
+    return _transcribe_voxtral(audio_bytes=audio_bytes, file_name=file_name)

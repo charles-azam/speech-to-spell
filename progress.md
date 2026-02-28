@@ -58,6 +58,13 @@
   - Auto-cleans up after 2.5s
 - Emojis sent in `spell_result` WebSocket message and rendered on the target side
 
+### Configurable STT provider
+- `voice.py` now supports two speech-to-text backends: **Voxtral** (Mistral) and **ElevenLabs Scribe v2**
+- Controlled by `STT_PROVIDER` env var in `.env` — set to `"voxtral"` (default) or `"elevenlabs"`
+- Public `transcribe()` API unchanged — `main.py` needs no modifications
+- Voxtral keeps its existing retry logic for transient network errors
+- ElevenLabs uses the `elevenlabs` SDK (already a dependency) with `scribe_v2` model
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup (replacing enum-based pick)
 - Room system (multiplayer lobby)
