@@ -7,6 +7,8 @@ interface WizardPanelProps {
   recording: boolean;
   transcription: string | null;
   processing: boolean;
+  spellName: string | null;
+  hitColor: string | null;
 }
 
 export function WizardPanel({
@@ -16,24 +18,38 @@ export function WizardPanel({
   recording,
   transcription,
   processing,
+  spellName,
+  hitColor,
 }: WizardPanelProps) {
   const isLeft = side === "left";
-  const bgGradient = isLeft
-    ? "from-indigo-900/40 to-purple-900/20"
-    : "from-rose-900/20 to-amber-900/40";
-  const borderColor = isLeft ? "border-indigo-500/30" : "border-amber-500/30";
-  const glowColor = recording
-    ? isLeft
-      ? "shadow-indigo-500/50"
-      : "shadow-amber-500/50"
-    : "";
 
   return (
     <div
-      className={`flex flex-col items-center justify-between p-8 rounded-2xl border bg-gradient-to-b ${bgGradient} ${borderColor} ${recording ? `shadow-lg ${glowColor}` : ""} transition-all duration-200 min-h-[500px]`}
+      className="relative flex flex-col items-center justify-between p-8 rounded-2xl border transition-all duration-500 min-h-[500px] overflow-hidden"
+      style={{
+        borderColor: hitColor ?? (isLeft ? "rgba(99,102,241,0.3)" : "rgba(245,158,11,0.3)"),
+        backgroundColor: hitColor ? `color-mix(in srgb, ${hitColor} 15%, transparent)` : undefined,
+        boxShadow: hitColor ? `0 0 40px ${hitColor}44, inset 0 0 60px ${hitColor}22` : undefined,
+      }}
     >
+      {/* Spell name overlay */}
+      {spellName && (
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+          style={{
+            textShadow: hitColor
+              ? `0 0 20px ${hitColor}, 0 0 40px ${hitColor}, 0 0 80px ${hitColor}`
+              : undefined,
+          }}
+        >
+          <p className="text-3xl font-black uppercase tracking-wider text-white animate-pulse">
+            {spellName}
+          </p>
+        </div>
+      )}
+
       {/* Wizard avatar area */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 z-20">
         <div
           className={`text-8xl ${recording ? "animate-bounce" : ""} transition-all`}
         >
@@ -43,7 +59,7 @@ export function WizardPanel({
       </div>
 
       {/* Transcription display */}
-      <div className="flex-1 flex items-center justify-center w-full my-8">
+      <div className="flex-1 flex items-center justify-center w-full my-8 z-20">
         {recording ? (
           <div className="flex flex-col items-center gap-3">
             <div className="flex gap-1">
@@ -76,7 +92,7 @@ export function WizardPanel({
 
       {/* Key indicator */}
       <div
-        className={`w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold font-mono transition-all duration-150 ${
+        className={`w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold font-mono transition-all duration-150 z-20 ${
           recording
             ? "bg-red-500 text-white scale-110"
             : "bg-white/10 text-white/40"

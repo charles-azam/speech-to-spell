@@ -1,7 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { TranscriptionMessage, AudioMessage } from "../types";
-
-type ServerMessage = TranscriptionMessage;
+import type { ServerMessage, AudioMessage } from "../types";
 
 export function useWebSocket(onMessage: (msg: ServerMessage) => void) {
   const wsRef = useRef<WebSocket | null>(null);

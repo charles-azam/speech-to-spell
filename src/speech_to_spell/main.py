@@ -6,6 +6,7 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from speech_to_spell.spell import interpret_spell
 from speech_to_spell.voice import transcribe
 
 logging.basicConfig(level=logging.INFO)
@@ -54,4 +55,17 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 "type": "transcription",
                 "player": player,
                 "text": text,
+            }))
+
+            # Ministral spell interpretation
+            spell = await asyncio.to_thread(interpret_spell, transcription=text)
+            logger.info(f"Spell for player {player}: {spell.spell_name} / {spell.color}")
+
+            opponent = "right" if player == "left" else "left"
+            await websocket.send_text(json.dumps({
+                "type": "spell_result",
+                "caster": player,
+                "target": opponent,
+                "spell_name": spell.spell_name,
+                "color": spell.color,
             }))

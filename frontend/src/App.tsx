@@ -4,7 +4,7 @@ import { MicSelector } from "./components/MicSelector";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useMicrophone } from "./hooks/useMicrophone";
 import { useAudioDevices } from "./hooks/useAudioDevices";
-import type { PlayerSide, TranscriptionMessage } from "./types";
+import type { PlayerSide, ServerMessage } from "./types";
 
 const PLAYER_LEFT_KEY = "q";
 const PLAYER_RIGHT_KEY = "p";
@@ -18,6 +18,10 @@ function App() {
   );
   const [leftProcessing, setLeftProcessing] = useState(false);
   const [rightProcessing, setRightProcessing] = useState(false);
+  const [leftSpellName, setLeftSpellName] = useState<string | null>(null);
+  const [rightSpellName, setRightSpellName] = useState<string | null>(null);
+  const [leftColor, setLeftColor] = useState<string | null>(null);
+  const [rightColor, setRightColor] = useState<string | null>(null);
   const activePlayerRef = useRef<PlayerSide | null>(null);
 
   const { devices } = useAudioDevices();
@@ -36,7 +40,7 @@ function App() {
     }
   }, [devices, leftDeviceId, rightDeviceId]);
 
-  const handleServerMessage = useCallback((msg: TranscriptionMessage) => {
+  const handleServerMessage = useCallback((msg: ServerMessage) => {
     if (msg.type === "transcription") {
       if (msg.player === "left") {
         setLeftTranscription(msg.text);
@@ -44,6 +48,18 @@ function App() {
       } else {
         setRightTranscription(msg.text);
         setRightProcessing(false);
+      }
+    } else if (msg.type === "spell_result") {
+      // Spell name goes on the caster's side, color on the target's side
+      if (msg.caster === "left") {
+        setLeftSpellName(msg.spell_name);
+      } else {
+        setRightSpellName(msg.spell_name);
+      }
+      if (msg.target === "left") {
+        setLeftColor(msg.color);
+      } else {
+        setRightColor(msg.color);
       }
     }
   }, []);
@@ -145,6 +161,8 @@ function App() {
               recording={leftRecording}
               transcription={leftTranscription}
               processing={leftProcessing}
+              spellName={leftSpellName}
+              hitColor={leftColor}
             />
           </div>
 
@@ -169,6 +187,8 @@ function App() {
               recording={rightRecording}
               transcription={rightTranscription}
               processing={rightProcessing}
+              spellName={rightSpellName}
+              hitColor={rightColor}
             />
           </div>
         </div>

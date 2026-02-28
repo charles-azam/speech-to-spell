@@ -22,8 +22,16 @@
 - Visual feedback: recording indicator (animated dots), "Transcribing..." state, transcription display
 - Dark wizard-duel aesthetic with Tailwind
 
+### Ministral spell interpretation (tool calling)
+- `src/speech_to_spell/spell.py`: Ministral 8B with two tools:
+  - `name_spell(name)` — gives the spell a dramatic name
+  - `change_color(color)` — picks a CSS color matching the spell's element
+- Pipeline: Voxtral transcription → Ministral tool calls → spell name + color sent to frontend
+- Frontend applies color tint (border, glow, background) to the **target** wizard's panel
+- Spell name displayed as an overlay on the **caster**'s panel
+- Per-player microphone selection (dropdown per player, device enumeration)
+
 ## Not yet implemented
-- Ministral spell interpretation (text → spell effects)
 - Game mechanics (health, mana, turns, damage)
 - Room system (multiplayer lobby)
 - Visual spell effects (emoji particles, CSS animations, screen shake)

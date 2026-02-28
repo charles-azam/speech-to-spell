@@ -14,6 +14,16 @@ export interface TranscriptionMessage {
   text: string;
 }
 
+export interface SpellResultMessage {
+  type: "spell_result";
+  caster: PlayerSide;
+  target: PlayerSide;
+  spell_name: string | null;
+  color: string | null;
+}
+
+export type ServerMessage = TranscriptionMessage | SpellResultMessage;
+
 export interface AudioMessage {
   type: "audio";
   player: PlayerSide;
