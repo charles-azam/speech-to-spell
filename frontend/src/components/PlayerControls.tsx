@@ -1,3 +1,4 @@
+import { useRef, useCallback } from "react";
 import { EmojiHand } from "./EmojiHand";
 import { TextSpellInput } from "./TextSpellInput";
 import { MicSelector } from "./MicSelector";
@@ -12,10 +13,13 @@ interface PlayerControlsProps {
   isExplaining: boolean;
   keyBind: string;
   disabled: boolean;
+  recording: boolean;
   devices: AudioDevice[];
   deviceId: string;
   onDeviceChange: (id: string) => void;
   onTextCast: (player: PlayerSide, text: string) => void;
+  onHoldStart: () => void;
+  onHoldEnd: () => void;
 }
 
 export function PlayerControls({
@@ -25,12 +29,31 @@ export function PlayerControls({
   isExplaining,
   keyBind,
   disabled,
+  recording,
   devices,
   deviceId,
   onDeviceChange,
   onTextCast,
+  onHoldStart,
+  onHoldEnd,
 }: PlayerControlsProps) {
   const { t } = useLanguage();
+  const holdingRef = useRef(false);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    holdingRef.current = true;
+    onHoldStart();
+  }, [onHoldStart]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    if (holdingRef.current) {
+      holdingRef.current = false;
+      onHoldEnd();
+    }
+  }, [onHoldEnd]);
 
   if (disabled) return null;
 
@@ -57,6 +80,27 @@ export function PlayerControls({
           {t("controls.explainPrompt").replace("{key}", keyBind)}
         </p>
       )}
+
+      {/* Hold-to-cast button (touch + mouse) */}
+      <button
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="w-full py-4 rounded-lg text-base font-semibold tracking-wider select-none touch-none transition-all"
+        style={{
+          fontFamily: "'MedievalSharp', cursive",
+          background: recording
+            ? "linear-gradient(135deg, var(--crimson), #8b1a1a)"
+            : "linear-gradient(135deg, var(--gold-dim), var(--gold))",
+          color: recording ? "#fff" : "var(--bg-deep)",
+          border: recording ? "1px solid var(--crimson)" : "1px solid var(--gold)",
+          boxShadow: recording
+            ? "0 0 20px var(--crimson-glow)"
+            : "0 0 10px rgba(201, 168, 76, 0.15)",
+        }}
+      >
+        {recording ? t("wizard.casting") : `${t("wizard.holdKey").replace("{key}", keyBind)} / Hold`}
+      </button>
 
       <TextSpellInput
         side={side}

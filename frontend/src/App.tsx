@@ -125,12 +125,27 @@ function App({ roomCode }: AppProps) {
     };
   }, [recording, state.winner, startRecording, stopRecording]);
 
+  const handleHoldStart = useCallback(
+    (side: PlayerSide) => {
+      if (recording || state.winner) return;
+      activePlayerRef.current = side;
+      const devId = side === "left" ? leftDeviceIdRef.current : rightDeviceIdRef.current;
+      startRecording(devId || undefined);
+    },
+    [recording, state.winner, startRecording],
+  );
+
+  const handleHoldEnd = useCallback(() => {
+    stopRecording();
+  }, [stopRecording]);
+
   const renderColumn = (side: PlayerSide) => {
     const ps = state[side];
     const name = state[side].wizardName || (side === "left" ? t("game.wizard1") : t("game.wizard2"));
     const keyBind = side === "left" ? "E" : "P";
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
+    const isRecording = recording && activePlayerRef.current === side;
 
     return (
       <div className="flex flex-col gap-4">
@@ -138,7 +153,7 @@ function App({ roomCode }: AppProps) {
           side={side}
           name={name}
           keyBind={keyBind}
-          recording={recording && activePlayerRef.current === side}
+          recording={isRecording}
           transcription={ps.transcription}
           processing={ps.processing}
           spellName={ps.spellName}
@@ -155,10 +170,13 @@ function App({ roomCode }: AppProps) {
             isExplaining={state.explainPlayer === side}
             keyBind={keyBind}
             disabled={false}
+            recording={isRecording}
             devices={devices}
             deviceId={deviceId}
             onDeviceChange={onDeviceChange}
             onTextCast={handleTextSpell}
+            onHoldStart={() => handleHoldStart(side)}
+            onHoldEnd={handleHoldEnd}
           />
         )}
       </div>

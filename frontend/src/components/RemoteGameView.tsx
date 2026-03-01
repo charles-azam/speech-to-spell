@@ -86,6 +86,15 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
     [send, dispatch],
   );
 
+  const handleHoldStart = useCallback(() => {
+    if (recording || state.winner) return;
+    startRecording(deviceIdRef.current || undefined);
+  }, [recording, state.winner, startRecording]);
+
+  const handleHoldEnd = useCallback(() => {
+    stopRecording();
+  }, [stopRecording]);
+
   // Push-to-talk: Spacebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -241,10 +250,13 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
                 isExplaining={state.explainPlayer === side}
                 keyBind="Space"
                 disabled={false}
+                recording={recording}
                 devices={devices}
                 deviceId={deviceId}
                 onDeviceChange={setDeviceId}
                 onTextCast={handleTextSpell}
+                onHoldStart={handleHoldStart}
+                onHoldEnd={handleHoldEnd}
               />
             )}
           </div>
