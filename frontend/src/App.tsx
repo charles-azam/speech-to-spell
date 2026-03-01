@@ -80,7 +80,7 @@ function App({ roomCode }: AppProps) {
     [send, dispatch],
   );
 
-  // Push-to-talk: Q for left, P for right
+  // Push-to-talk: E for left, P for right (same key on QWERTY and AZERTY)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -89,7 +89,7 @@ function App({ roomCode }: AppProps) {
       if (recording) return;
 
       const key = e.key.toLowerCase();
-      if (key === "q") {
+      if (key === "e") {
         e.preventDefault();
         activePlayerRef.current = "left";
         startRecording(leftDeviceIdRef.current || undefined);
@@ -103,7 +103,7 @@ function App({ roomCode }: AppProps) {
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (
-        (key === "q" && activePlayerRef.current === "left") ||
+        (key === "e" && activePlayerRef.current === "left") ||
         (key === "p" && activePlayerRef.current === "right")
       ) {
         e.preventDefault();
@@ -122,7 +122,7 @@ function App({ roomCode }: AppProps) {
   const renderColumn = (side: PlayerSide) => {
     const ps = state[side];
     const name = state[side].wizardName || (side === "left" ? t("game.wizard1") : t("game.wizard2"));
-    const keyBind = side === "left" ? "Q" : "P";
+    const keyBind = side === "left" ? "E" : "P";
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
 

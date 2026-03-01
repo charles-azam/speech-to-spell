@@ -39,12 +39,8 @@ export function RulesPanel({ onClose }: RulesPanelProps) {
           {/* How to Cast */}
           <Section icon="🎙️" title={t("rules.castTitle")}>
             <ul className="list-none flex flex-col gap-1">
-              <li>
-                <kbd className="rules-kbd">Q</kbd> / <kbd className="rules-kbd">P</kbd> — {t("rules.castSame")}
-              </li>
-              <li>
-                <kbd className="rules-kbd">Space</kbd> — {t("rules.castRemote")}
-              </li>
+              <li>{t("rules.castSame")}</li>
+              <li>{t("rules.castRemote")}</li>
               <li style={{ color: "var(--text-dim)" }}>{t("rules.castText")}</li>
             </ul>
           </Section>

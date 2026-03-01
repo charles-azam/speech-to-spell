@@ -73,7 +73,7 @@ const translations = {
   "rules.goalTitle": { fr: "Objectif", en: "Goal" },
   "rules.goalText": { fr: "Réduisez les PV de votre adversaire à 0.", en: "Reduce your opponent's HP to 0." },
   "rules.castTitle": { fr: "Lancer un sort", en: "How to Cast" },
-  "rules.castSame": { fr: "Même ordi : maintenez [Q] (gauche) ou [P] (droite) pour parler", en: "Same computer: hold [Q] (left) or [P] (right) to speak" },
+  "rules.castSame": { fr: "Même ordi : maintenez [E] (gauche) ou [P] (droite) pour parler", en: "Same computer: hold [E] (left) or [P] (right) to speak" },
   "rules.castRemote": { fr: "En ligne : maintenez [Espace] pour parler", en: "Online: hold [Space] to speak" },
   "rules.castText": { fr: "Ou tapez votre incantation dans la zone de texte.", en: "Or type your incantation in the text box." },
   "rules.emojiTitle": { fr: "Les Emojis", en: "The Emojis" },
