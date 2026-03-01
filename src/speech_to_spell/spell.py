@@ -15,7 +15,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ---- Change this to switch provider ----
-SPELL_PROVIDER: Literal["mistral", "aws", "huggingface"] = "mistral"
+SPELL_PROVIDER: Literal["mistral", "aws"] = "mistral"
 
 # --- Mistral (direct) ---
 _mistral_client: Mistral | None = None
@@ -24,10 +24,6 @@ MISTRAL_MODEL = "ministral-8b-latest"
 # --- AWS Bedrock (OpenAI-compatible) ---
 _aws_client: OpenAI | None = None
 AWS_MODEL = "mistral.ministral-8b-2410-v1:0"
-
-# --- HuggingFace GPT-OSS 120B ---
-_hf_client: OpenAI | None = None
-HF_MODEL = "openai/gpt-oss-120b:cerebras"
 
 
 def _get_mistral_client() -> Mistral:
@@ -46,15 +42,6 @@ def _get_aws_client() -> OpenAI:
         )
     return _aws_client
 
-
-def _get_hf_client() -> OpenAI:
-    global _hf_client
-    if _hf_client is None:
-        _hf_client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=os.environ["HUGGINGFACE_API_KEY"],
-        )
-    return _hf_client
 
 # --- Valid templates for visual effects ---
 
@@ -532,7 +519,7 @@ def _interpret_mistral(user_content: str, lang: str = "fr") -> JudgeVerdict:
 
 
 def _interpret_openai(client: OpenAI, model: str, user_content: str, lang: str = "fr") -> JudgeVerdict:
-    """Interpret spell via any OpenAI-compatible endpoint (AWS Bedrock, HuggingFace, etc.)."""
+    """Interpret spell via any OpenAI-compatible endpoint (e.g. AWS Bedrock)."""
     system_prompt = SYSTEM_PROMPT_EN if lang == "en" else SYSTEM_PROMPT
     tools = TOOLS_EN if lang == "en" else TOOLS_FR
     response = client.chat.completions.create(
@@ -568,10 +555,8 @@ def interpret_spell(
 
     if SPELL_PROVIDER == "mistral":
         return _interpret_mistral(user_content=user_content, lang=lang)
-    elif SPELL_PROVIDER == "aws":
-        return _interpret_openai(client=_get_aws_client(), model=AWS_MODEL, user_content=user_content, lang=lang)
     else:
-        return _interpret_openai(client=_get_hf_client(), model=HF_MODEL, user_content=user_content, lang=lang)
+        return _interpret_openai(client=_get_aws_client(), model=AWS_MODEL, user_content=user_content, lang=lang)
 
 
 def _parse_inferred_emojis(tool_calls: list, hand: list[str]) -> list[str]:
@@ -608,20 +593,9 @@ def infer_emojis(hand: list[str], transcription: str, lang: str = "fr") -> list[
             tool_choice="any",
         )
         tool_calls = response.choices[0].message.tool_calls or []
-    elif SPELL_PROVIDER == "aws":
+    else:
         response = _get_aws_client().chat.completions.create(
             model=AWS_MODEL,
-            messages=[
-                {"role": "system", "content": INFER_EMOJIS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            tools=tools,
-            tool_choice="auto",
-        )
-        tool_calls = response.choices[0].message.tool_calls or []
-    else:
-        response = _get_hf_client().chat.completions.create(
-            model=HF_MODEL,
             messages=[
                 {"role": "system", "content": INFER_EMOJIS_SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},

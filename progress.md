@@ -4,13 +4,12 @@
 
 ### Project scaffolding
 - UV project at root with `pyproject.toml`, Python 3.13
-- Dependencies: fastapi, uvicorn, websockets, mistralai, python-dotenv, elevenlabs
+- Dependencies: fastapi, uvicorn, websockets, mistralai, python-dotenv, elevenlabs (TTS only)
 - Frontend: Vite + React + TypeScript + Tailwind CSS
 - Vite proxy configured (WebSocket `/ws` → backend port 8000)
 
 ### Backend — Voice pipeline
 - `src/speech_to_spell/voice.py`: Voxtral transcription via Mistral SDK (`voxtral-mini-latest`)
-- ElevenLabs Scribe v2 as alternative STT provider (`STT_PROVIDER` env var)
 - Retry logic for transient network errors
 
 ### Backend — Emoji hand system
@@ -84,9 +83,6 @@
 - `SpellEffect.tsx`: 9 templates (explosion, swirl, rain, wave_left, wave_right, shatter, pulse, spiral, rise)
 - CSS keyframe animations with parameterized colors/scale/duration
 - Auto-cleanup after animation duration
-
-### Configurable STT provider
-- Voxtral (default) or ElevenLabs Scribe v2 via `STT_PROVIDER` env var
 
 ### Text spell input (testing bypass)
 - `TextSpellInput.tsx`: type spells directly, bypasses audio capture + STT
@@ -214,7 +210,7 @@
 - New `infer_emojis()` in `spell.py`: Ministral tool-calling infers which emojis from the hand match the incantation
   - `select_emojis` tool with `emojis: string[]` parameter
   - Validates LLM output against actual hand; fallback to first 2 if <2 valid
-  - Supports all 3 providers (mistral/aws/huggingface)
+  - Supports mistral and aws providers
 - Backend `main.py`: `cast_spell` and `text_spell` handlers no longer read `selected_emojis` from client message
   - After transcription, calls `infer_emojis()` server-side
   - Broadcasts new `emoji_inference` message with inferred emojis
