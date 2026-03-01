@@ -180,9 +180,37 @@
 - Frontend: `JudgeVoiceMessage` type added, handled same as `sound_effect` in `useWebSocket.ts`
 - Judge speaks aloud every verdict comment — French roasts are now audible
 
+### Sports Commentator Duo (Marc & Sophie)
+- `src/speech_to_spell/commentator.py`: Marc (excitable male) & Sophie (sarcastic female) commentator duo
+  - LLM-driven via `ministral-8b-latest` with two tools: `marc_says` and `sophie_says`
+  - System prompt defines personalities: Marc hypes big moments (French/English mix), Sophie roasts bad plays (deadpan)
+  - `generate_commentary(events, left_name, right_name)` → reacts to spells
+  - `generate_idle_commentary(events, left_name, right_name, idle_seconds)` → fills silence when nobody is casting
+  - 1-3 lines per commentary burst, max 15 words each
+- `room.py`: `event_log: list[str]`, `last_spell_at: float`, `judge_busy_until: float` on Room
+- `main.py`:
+  - **Spell reactions**: `run_commentary()` fires after every spell, waits for `judge_busy_until` before speaking (no overlap with judge)
+  - **Idle chatter**: `idle_commentary_loop()` runs every 20s per room, triggers when silence ≥12s — commentators nag players, banter between themselves, make predictions
+  - `_broadcast_commentary_lines()` shared helper: checks `judge_busy_until` before each line
+  - Two ElevenLabs voices: `COMMENTATOR_MALE_VOICE_ID` (Marc) + `COMMENTATOR_FEMALE_VOICE_ID` (Sophie) via env vars
+- Frontend:
+  - `CommentatorVoiceMessage` with `speaker` field ("marc" | "sophie")
+  - `useWebSocket.ts`: audio queue system — commentator lines play one at a time (no overlap), `playSoundAsync` waits for audio to finish, 300ms gap between lines
+  - `CommentatorPanel.tsx`: shows Marc & Sophie side by side below the judge, active speaker gets glow + animated sound bars, inactive speaker dimmed
+  - Wired into both `App.tsx` (same-computer) and `RemoteGameView.tsx` (multi-computer)
+
+### TTS caching
+- `tts.py`: in-memory cache keyed by `md5(voice_id:text)` — avoids redundant ElevenLabs API calls
+  - Commentators often repeat similar phrases ("on s'ennuie", "allez jouez!"), cache prevents paying twice
+  - Max 500 entries, FIFO eviction
+
+### Same-computer: both players named
+- `room.py`: `fill_both_sides(code, left_name, right_name)` — accepts two distinct names
+- `main.py`: `CreateRoomRequest` gains `wizard_name_right: str | None`
+- `Lobby.tsx`: second "Wizard Name (Right)" input shown when mode is same-computer, validated non-empty
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
-- **Commentator** — separate LLM-generated play-by-play with different voice
 - **VAD (Silero)** — not needed for turn-based
 
 ## How to run

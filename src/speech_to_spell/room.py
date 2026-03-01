@@ -28,8 +28,11 @@ class Room(BaseModel):
     players: dict[str, PlayerInfo]  # side -> PlayerInfo
     game: GameState | None = None
     pending_explanations: dict[str, PendingExplanation] = {}
+    event_log: list[str] = []
     created_at: float
     lang: str = "en"  # "fr" or "en"
+    last_spell_at: float = 0.0  # timestamp of last spell processed
+    judge_busy_until: float = 0.0  # estimated time when judge voice finishes
 
 
 # Module-level state
@@ -72,17 +75,28 @@ def join_room(code: str, wizard_name: str) -> tuple[Room, str]:
     return room, "right"
 
 
-def fill_both_sides(code: str, wizard_name: str) -> Room:
+def fill_both_sides(code: str, left_name: str, right_name: str) -> Room:
     """Fill both sides for same-computer mode. Returns the room."""
     room = _rooms.get(code)
     if room is None:
         raise ValueError(f"Room {code} not found")
-    room.players["right"] = PlayerInfo(wizard_name=f"{wizard_name} 2", side="right")
+    room.players["left"].wizard_name = left_name
+    room.players["right"] = PlayerInfo(wizard_name=right_name, side="right")
     return room
 
 
 def get_room(code: str) -> Room | None:
     return _rooms.get(code)
+
+
+def append_event(code: str, event: str, max_events: int = 8) -> None:
+    """Append an event to the room's event log, keeping only the last max_events."""
+    room = _rooms.get(code)
+    if room is None:
+        return
+    room.event_log.append(event)
+    if len(room.event_log) > max_events:
+        room.event_log = room.event_log[-max_events:]
 
 
 def register_ws(code: str, side: str, ws: WebSocket) -> None:

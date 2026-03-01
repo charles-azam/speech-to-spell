@@ -12,6 +12,7 @@ interface LobbyProps {
 export function Lobby({ onRoomCreated }: LobbyProps) {
   const { lang, t } = useLanguage();
   const [wizardName, setWizardName] = useState("");
+  const [wizardNameRight, setWizardNameRight] = useState("");
   const [mode, setMode] = useState<GameMode>("same_computer");
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,13 +23,22 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
       setError(t("lobby.errorName"));
       return;
     }
+    if (mode === "same_computer" && !wizardNameRight.trim()) {
+      setError("Choose a name for the second wizard!");
+      return;
+    }
     setLoading(true);
     setError(null);
+
+    const payload: Record<string, string> = { wizard_name: wizardName.trim(), mode, lang };
+    if (mode === "same_computer" && wizardNameRight.trim()) {
+      payload.wizard_name_right = wizardNameRight.trim();
+    }
 
     const res = await fetch(`${API_BASE}/api/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wizard_name: wizardName.trim(), mode, lang }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -126,6 +136,34 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
             onBlur={(e) => (e.target.style.borderColor = "var(--border-subtle)")}
           />
         </div>
+
+        {/* Second wizard name (same-computer only) */}
+        {mode === "same_computer" && (
+          <div className="flex flex-col gap-2">
+            <label
+              className="text-sm font-semibold tracking-wider uppercase"
+              style={{ color: "var(--gold)", fontFamily: "'Cinzel', serif", fontSize: "11px" }}
+            >
+              Wizard Name (Right)
+            </label>
+            <input
+              type="text"
+              value={wizardNameRight}
+              onChange={(e) => setWizardNameRight(e.target.value)}
+              placeholder="Opponent's wizard name..."
+              maxLength={20}
+              className="w-full px-4 py-3 rounded-lg text-base outline-none transition-colors"
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-subtle)",
+                color: "var(--text-primary)",
+                fontFamily: "'MedievalSharp', cursive",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "var(--border-active)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--border-subtle)")}
+            />
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div className="flex flex-col gap-2">

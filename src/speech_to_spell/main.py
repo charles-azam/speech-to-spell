@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import time
 
 from contextlib import asynccontextmanager
 
@@ -25,6 +26,7 @@ from speech_to_spell.game import (
 from speech_to_spell.room import (
     PendingExplanation,
     Room,
+    append_event,
     cleanup_stale_rooms,
     create_room,
     fill_both_sides,
@@ -34,6 +36,7 @@ from speech_to_spell.room import (
     register_ws,
     unregister_ws,
 )
+from speech_to_spell.commentator import generate_commentary, generate_idle_commentary
 from speech_to_spell.sound import load_sound
 from speech_to_spell.spell import JudgeVerdict, interpret_spell
 from speech_to_spell.tts import text_to_speech
@@ -44,6 +47,9 @@ logger = logging.getLogger(__name__)
 
 ENABLE_SOUND_EFFECTS = True
 MIN_EMOJIS = 2
+
+COMMENTATOR_MALE_VOICE_ID = os.environ.get("COMMENTATOR_MALE_VOICE_ID", "TX3LPaxmHKxFdv7VOQHJ")
+COMMENTATOR_FEMALE_VOICE_ID = os.environ.get("COMMENTATOR_FEMALE_VOICE_ID", "XB0fDUnXU5powFXDhCwa")
 
 
 async def periodic_cleanup() -> None:
@@ -82,6 +88,7 @@ class CreateRoomRequest(BaseModel):
     wizard_name: str
     mode: str  # "same_computer" or "multi_computer"
     lang: str = "en"  # "fr" or "en"
+    wizard_name_right: str | None = None
 
 
 class CreateRoomResponse(BaseModel):
@@ -114,7 +121,8 @@ def api_create_room(body: CreateRoomRequest) -> CreateRoomResponse:
     room = create_room(wizard_name=body.wizard_name, lang=body.lang)
 
     if body.mode == "same_computer":
-        fill_both_sides(code=room.code, wizard_name=body.wizard_name)
+        right_name = body.wizard_name_right or f"{body.wizard_name} 2"
+        fill_both_sides(code=room.code, left_name=body.wizard_name, right_name=right_name)
         # Create game immediately for same-computer
         room.game = create_game()
 
@@ -257,6 +265,11 @@ async def broadcast_sound_effect(room_code: str, sound_id: str | None) -> None:
 async def broadcast_judge_voice(room_code: str, comment: str) -> None:
     """Generate TTS for the judge's comment and broadcast to room."""
     audio_bytes = await asyncio.to_thread(text_to_speech, text=comment)
+    # Estimate judge voice duration: ~0.08s per character + 1s buffer
+    estimated_duration = len(comment) * 0.08 + 1.0
+    room = get_room(code=room_code)
+    if room is not None:
+        room.judge_busy_until = time.time() + estimated_duration
     await broadcast_to_room(
         room_code=room_code,
         message={
@@ -264,6 +277,110 @@ async def broadcast_judge_voice(room_code: str, comment: str) -> None:
             "audio": base64.b64encode(audio_bytes).decode(),
         },
     )
+
+
+# --- Commentary system ---
+
+# Track idle commentary tasks per room so we can cancel them
+_commentary_tasks: dict[str, asyncio.Task] = {}  # room_code → background idle loop task
+
+IDLE_COMMENTARY_INTERVAL_S = 20  # how often idle commentary fires
+IDLE_THRESHOLD_S = 12  # seconds of silence before commentators fill the gap
+
+
+async def _broadcast_commentary_lines(room: Room, lines: list) -> None:
+    """Broadcast commentary lines as TTS audio, sequentially."""
+    for line in lines:
+        # Wait for judge to finish before speaking
+        now = time.time()
+        wait = room.judge_busy_until - now
+        if wait > 0:
+            await asyncio.sleep(wait)
+        voice_id = COMMENTATOR_MALE_VOICE_ID if line.speaker == "marc" else COMMENTATOR_FEMALE_VOICE_ID
+        audio = await asyncio.to_thread(text_to_speech, text=line.text, voice_id=voice_id)
+        await broadcast_to_room(
+            room_code=room.code,
+            message={
+                "type": "commentator_voice",
+                "speaker": line.speaker,
+                "audio": base64.b64encode(audio).decode(),
+            },
+        )
+
+
+async def run_commentary(room: Room) -> None:
+    """Fire-and-forget: wait for judge voice to finish, then generate and broadcast commentary."""
+    # Wait for judge voice to finish
+    now = time.time()
+    wait = room.judge_busy_until - now
+    if wait > 0:
+        await asyncio.sleep(wait)
+
+    # Guard: game over or room gone
+    if room.game is None or room.game.winner:
+        return
+    events = room.event_log[-5:]
+    if not events:
+        return
+    left_name = room.players["left"].wizard_name
+    right_name = room.players["right"].wizard_name
+    lines = await asyncio.to_thread(
+        generate_commentary,
+        events=events,
+        left_name=left_name,
+        right_name=right_name,
+    )
+    await _broadcast_commentary_lines(room=room, lines=lines)
+
+
+async def idle_commentary_loop(room: Room) -> None:
+    """Background loop: periodically fill silence with commentator chatter."""
+    # Give the game a moment to get going
+    await asyncio.sleep(IDLE_COMMENTARY_INTERVAL_S)
+
+    while True:
+        # Check if game is still active
+        if room.game is None or room.game.winner:
+            break
+        if get_room(code=room.code) is None:
+            break
+
+        now = time.time()
+        idle_for = now - room.last_spell_at if room.last_spell_at > 0 else now - room.created_at
+
+        if idle_for >= IDLE_THRESHOLD_S:
+            # Wait for judge to finish
+            wait = room.judge_busy_until - now
+            if wait > 0:
+                await asyncio.sleep(wait)
+
+            if "left" not in room.players or "right" not in room.players:
+                break
+
+            left_name = room.players["left"].wizard_name
+            right_name = room.players["right"].wizard_name
+            lines = await asyncio.to_thread(
+                generate_idle_commentary,
+                events=room.event_log[-3:],
+                left_name=left_name,
+                right_name=right_name,
+                idle_seconds=int(idle_for),
+            )
+            await _broadcast_commentary_lines(room=room, lines=lines)
+
+        await asyncio.sleep(IDLE_COMMENTARY_INTERVAL_S)
+
+    # Clean up
+    _commentary_tasks.pop(room.code, None)
+
+
+def start_idle_commentary(room: Room) -> None:
+    """Start the idle commentary loop for a room if not already running."""
+    if room.code in _commentary_tasks:
+        task = _commentary_tasks[room.code]
+        if not task.done():
+            return
+    _commentary_tasks[room.code] = asyncio.create_task(idle_commentary_loop(room=room))
 
 
 # --- Game logic ---
@@ -295,6 +412,8 @@ async def process_spell(
     """Process a spell through the judge and apply results. Updates room in-place."""
     game = room.game
     assert game is not None
+
+    room.last_spell_at = time.time()
 
     context = format_game_context(game=game, caster=player)
 
@@ -333,11 +452,26 @@ async def process_spell(
             selected_emojis=selected_emojis,
             transcription=transcription,
         )
+        wizard_name = room.players[player].wizard_name
+        emoji_str = " ".join(selected_emojis)
+        append_event(
+            code=room.code,
+            event=f"{wizard_name} confused the judge with '{emoji_str}'. Judge: '{verdict.comment}'",
+        )
         # Still broadcast judge voice for EXPLAIN verdicts
         await broadcast_judge_voice(room_code=room.code, comment=verdict.comment)
         return
 
+    wizard_name = room.players[player].wizard_name
+    emoji_str = " ".join(selected_emojis)
+
     if verdict.verdict == "YES":
+        target_name = room.players[target_side].wizard_name
+        append_event(
+            code=room.code,
+            event=f"{wizard_name} cast '{verdict.spell_name}' ({emoji_str}) → {verdict.damage} dmg to {target_name}. Judge: '{verdict.comment}'",
+        )
+
         # Apply spell effects
         room.game = apply_spell(
             game=game,
@@ -353,7 +487,11 @@ async def process_spell(
             broadcast_judge_voice(room_code=room.code, comment=verdict.comment),
         )
     else:
-        # NO verdict — just broadcast judge voice
+        # NO verdict
+        append_event(
+            code=room.code,
+            event=f"{wizard_name} tried '{emoji_str}' → REJECTED. Judge: '{verdict.comment}'",
+        )
         await broadcast_judge_voice(room_code=room.code, comment=verdict.comment)
 
     # Consume emojis regardless of verdict (YES, NO, or EXPLAIN->final)
@@ -361,6 +499,9 @@ async def process_spell(
 
     # Send updated game state
     await broadcast_game_state(room=room)
+
+    # Fire-and-forget commentary (runs after a delay to let judge voice finish)
+    asyncio.create_task(run_commentary(room=room))
 
     # Clear pending explanation for this player
     room.pending_explanations.pop(player, None)
@@ -414,6 +555,7 @@ async def websocket_endpoint(
     # Send current game state if game has started
     if room.game is not None:
         await broadcast_game_state(room=room)
+        start_idle_commentary(room=room)
 
     try:
         while True:

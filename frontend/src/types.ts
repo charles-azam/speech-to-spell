@@ -70,6 +70,14 @@ export interface PlayerJoinedMessage {
   wizard_name: string;
 }
 
+export type CommentatorSpeaker = "marc" | "sophie";
+
+export interface CommentatorVoiceMessage {
+  type: "commentator_voice";
+  speaker: CommentatorSpeaker;
+  audio: string; // base64 mp3
+}
+
 export interface PlayerDisconnectedMessage {
   type: "player_disconnected";
   side: PlayerSide;
@@ -81,6 +89,7 @@ export type ServerMessage =
   | GameStateMessage
   | SoundEffectMessage
   | JudgeVoiceMessage
+  | CommentatorVoiceMessage
   | SpellFizzleMessage
   | PlayerJoinedMessage
   | PlayerDisconnectedMessage;

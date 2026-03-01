@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { WizardPanel } from "./components/WizardPanel";
 import { JudgePanel } from "./components/JudgePanel";
+import { CommentatorPanel } from "./components/CommentatorPanel";
 import { AmbientSparkles } from "./components/AmbientSparkles";
 import { PlayerControls } from "./components/PlayerControls";
 import { SpellHistory } from "./components/SpellHistory";
@@ -35,7 +36,7 @@ function App({ roomCode }: AppProps) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const { send, connected } = useWebSocket(handleServerMessage, roomCode, "both");
+  const { send, connected, currentSpeaker } = useWebSocket(handleServerMessage, roomCode, "both");
   const sendRef = useRef(send);
   sendRef.current = send;
 
@@ -224,13 +225,16 @@ function App({ roomCode }: AppProps) {
       <main className="flex-1 flex items-start justify-center px-6 pb-8 relative z-10">
         <div className="grid grid-cols-[1fr_auto_1fr] gap-6 w-full max-w-6xl items-start">
           {renderColumn("left")}
-          <JudgePanel
-            verdict={state.judge.verdict}
-            comment={state.judge.comment}
-            waiting={state.judge.waiting}
-            spellName={state.judge.spellName}
-            damage={state.judge.damage}
-          />
+          <div className="flex flex-col items-center">
+            <JudgePanel
+              verdict={state.judge.verdict}
+              comment={state.judge.comment}
+              waiting={state.judge.waiting}
+              spellName={state.judge.spellName}
+              damage={state.judge.damage}
+            />
+            <CommentatorPanel currentSpeaker={currentSpeaker} />
+          </div>
           {renderColumn("right")}
         </div>
       </main>

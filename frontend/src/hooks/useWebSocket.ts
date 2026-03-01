@@ -1,21 +1,43 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { API_BASE } from "../config";
-import type { ServerMessage, ClientMessage } from "../types";
+import type { ServerMessage, ClientMessage, CommentatorSpeaker } from "../types";
 
 // Singleton AudioContext — lives outside React, immune to re-renders
 let audioCtx: AudioContext | null = null;
 
-function playSound(base64: string) {
+function getAudioCtx(): AudioContext {
   if (!audioCtx) audioCtx = new AudioContext();
+  return audioCtx;
+}
+
+function playSound(base64: string) {
+  const ctx = getAudioCtx();
   const raw = atob(base64);
   const buf = new ArrayBuffer(raw.length);
   const view = new Uint8Array(buf);
   for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-  audioCtx.decodeAudioData(buf).then((decoded) => {
-    const source = audioCtx!.createBufferSource();
+  ctx.decodeAudioData(buf).then((decoded) => {
+    const source = ctx.createBufferSource();
     source.buffer = decoded;
-    source.connect(audioCtx!.destination);
+    source.connect(ctx.destination);
     source.start();
+  });
+}
+
+function playSoundAsync(base64: string): Promise<void> {
+  const ctx = getAudioCtx();
+  const raw = atob(base64);
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+  return ctx.decodeAudioData(buf).then((decoded) => {
+    return new Promise<void>((resolve) => {
+      const source = ctx.createBufferSource();
+      source.buffer = decoded;
+      source.connect(ctx.destination);
+      source.onended = () => resolve();
+      source.start();
+    });
   });
 }
 
@@ -30,11 +52,30 @@ export function useWebSocket(
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [currentSpeaker, setCurrentSpeaker] = useState<CommentatorSpeaker | null>(null);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
   const retriesRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+
+  // Commentator audio queue
+  const commentatorQueueRef = useRef<{ speaker: CommentatorSpeaker; audio: string }[]>([]);
+  const playingCommentatorRef = useRef(false);
+
+  const processCommentatorQueue = useCallback(async () => {
+    if (playingCommentatorRef.current) return;
+    playingCommentatorRef.current = true;
+    while (commentatorQueueRef.current.length > 0) {
+      const item = commentatorQueueRef.current.shift()!;
+      setCurrentSpeaker(item.speaker);
+      await playSoundAsync(item.audio);
+      // Small pause between lines for natural pacing
+      await new Promise<void>((r) => setTimeout(r, 300));
+    }
+    setCurrentSpeaker(null);
+    playingCommentatorRef.current = false;
+  }, []);
 
   const buildWsUrl = useCallback((code: string, s: string): string => {
     if (API_BASE) {
@@ -75,9 +116,14 @@ export function useWebSocket(
         playSound(msg.audio);
         return;
       }
+      if (msg.type === "commentator_voice") {
+        commentatorQueueRef.current.push({ speaker: msg.speaker, audio: msg.audio });
+        processCommentatorQueue();
+        return;
+      }
       onMessageRef.current(msg);
     };
-  }, [roomCode, side, buildWsUrl]);
+  }, [roomCode, side, buildWsUrl, processCommentatorQueue]);
 
   useEffect(() => {
     unmountedRef.current = false;
@@ -99,5 +145,5 @@ export function useWebSocket(
     }
   }, []);
 
-  return { send, connected };
+  return { send, connected, currentSpeaker };
 }

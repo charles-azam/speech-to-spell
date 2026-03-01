@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WizardPanel } from "./WizardPanel";
 import { JudgePanel } from "./JudgePanel";
+import { CommentatorPanel } from "./CommentatorPanel";
 import { AmbientSparkles } from "./AmbientSparkles";
 import { PlayerControls } from "./PlayerControls";
 import { SpellHistory } from "./SpellHistory";
@@ -39,7 +40,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
     [baseHandler, side],
   );
 
-  const { send, connected } = useWebSocket(handleServerMessage, roomCode, side);
+  const { send, connected, currentSpeaker } = useWebSocket(handleServerMessage, roomCode, side);
   const sendRef = useRef(send);
   sendRef.current = send;
 
@@ -206,14 +207,17 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
             )}
           </div>
 
-          {/* Judge Panel */}
-          <JudgePanel
-            verdict={state.judge.verdict}
-            comment={state.judge.comment}
-            waiting={state.judge.waiting}
-            spellName={state.judge.spellName}
-            damage={state.judge.damage}
-          />
+          {/* Judge Panel + Commentators */}
+          <div className="flex flex-col items-center">
+            <JudgePanel
+              verdict={state.judge.verdict}
+              comment={state.judge.comment}
+              waiting={state.judge.waiting}
+              spellName={state.judge.spellName}
+              damage={state.judge.damage}
+            />
+            <CommentatorPanel currentSpeaker={currentSpeaker} />
+          </div>
 
           {/* Opponent (right visual position) */}
           <div className="flex flex-col gap-4">
