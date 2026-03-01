@@ -4,10 +4,12 @@ import { JudgePanel } from "./JudgePanel";
 import { AmbientSparkles } from "./AmbientSparkles";
 import { PlayerControls } from "./PlayerControls";
 import { SpellHistory } from "./SpellHistory";
+import { LanguageToggle } from "./LanguageToggle";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useGameState } from "../hooks/useGameState";
 import { useMicrophone } from "../hooks/useMicrophone";
 import { useAudioDevices } from "../hooks/useAudioDevices";
+import { useLanguage } from "../hooks/useLanguage";
 import type { PlayerSide, ServerMessage } from "../types";
 
 interface RemoteGameViewProps {
@@ -17,6 +19,7 @@ interface RemoteGameViewProps {
 }
 
 export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewProps) {
+  const { t } = useLanguage();
   const opponent: PlayerSide = side === "left" ? "right" : "left";
   const { state, dispatch, handleServerMessage: baseHandler } = useGameState();
   const { devices } = useAudioDevices();
@@ -112,6 +115,9 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
 
       {/* Header */}
       <header className="text-center pt-6 pb-4 relative z-10">
+        <div className="absolute top-4 right-4">
+          <LanguageToggle />
+        </div>
         <h1
           className="text-4xl font-bold tracking-[0.08em]"
           style={{
@@ -132,15 +138,15 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
               }}
             />
             <span className="text-xs" style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-dim)" }}>
-              {connected ? "Connected" : "Disconnected"}
+              {connected ? t("status.connected") : t("status.disconnected")}
             </span>
           </div>
           <span className="text-xs" style={{ color: "var(--text-dim)", fontFamily: "'Cinzel', serif" }}>
-            Room: {roomCode}
+            {t("game.room")} {roomCode}
           </span>
           {!state.opponentConnected && (
             <span className="text-xs animate-pulse" style={{ color: "var(--amber-warn)" }}>
-              Waiting for opponent...
+              {t("game.waitingOpponent")}
             </span>
           )}
         </div>
@@ -160,7 +166,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
               textShadow: "0 0 40px rgba(201, 168, 76, 0.5), 0 0 80px rgba(201, 168, 76, 0.25)",
             }}
           >
-            {state.winner === side ? `${wizardName} Triomphe !` : `${state.opponentName} Triomphe !`}
+            {state.winner === side ? `${wizardName} ${t("game.triumphs")}` : `${state.opponentName} ${t("game.triumphs")}`}
           </p>
         </div>
       )}

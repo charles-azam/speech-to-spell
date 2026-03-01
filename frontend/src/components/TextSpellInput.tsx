@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import type { PlayerSide } from "../types";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface TextSpellInputProps {
   side: PlayerSide;
@@ -8,6 +9,7 @@ interface TextSpellInputProps {
 }
 
 export function TextSpellInput({ side, onCast, disabled }: TextSpellInputProps) {
+  const { t } = useLanguage();
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -28,7 +30,7 @@ export function TextSpellInput({ side, onCast, disabled }: TextSpellInputProps) 
           e.stopPropagation();
           if (e.key === "Enter") handleSubmit();
         }}
-        placeholder="Ecris ton incantation..."
+        placeholder={t("text.placeholder")}
         disabled={disabled}
         className="flex-1 px-3 py-1.5 text-sm outline-none transition-all duration-200"
         style={{
@@ -62,7 +64,7 @@ export function TextSpellInput({ side, onCast, disabled }: TextSpellInputProps) 
           opacity: disabled || !value.trim() ? 0.25 : 1,
         }}
       >
-        Cast
+        {t("text.cast")}
       </button>
     </div>
   );

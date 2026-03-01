@@ -3,6 +3,7 @@ import { TextSpellInput } from "./TextSpellInput";
 import { MicSelector } from "./MicSelector";
 import type { AudioDevice } from "../hooks/useAudioDevices";
 import type { PlayerSide } from "../types";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface PlayerControlsProps {
   side: PlayerSide;
@@ -31,6 +32,8 @@ export function PlayerControls({
   onDeviceChange,
   onTextCast,
 }: PlayerControlsProps) {
+  const { t } = useLanguage();
+
   if (disabled) return null;
 
   return (
@@ -55,7 +58,7 @@ export function PlayerControls({
           className="text-sm text-center"
           style={{ fontFamily: "'Crimson Pro', serif", fontStyle: "italic", color: "var(--amber-warn)" }}
         >
-          Le juge veut une explication ! Maintiens [{keyBind}] pour justifier ton sort.
+          {t("controls.explainPrompt").replace("{key}", keyBind)}
         </p>
       )}
 

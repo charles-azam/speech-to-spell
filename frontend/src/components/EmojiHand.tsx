@@ -1,3 +1,5 @@
+import { useLanguage } from "../hooks/useLanguage";
+
 interface EmojiHandProps {
   emojis: string[];
   selectedEmojis: string[];
@@ -11,6 +13,7 @@ export function EmojiHand({
   onToggle,
   disabled,
 }: EmojiHandProps) {
+  const { t } = useLanguage();
   const selectedCount = selectedEmojis.length;
 
   return (
@@ -27,7 +30,7 @@ export function EmojiHand({
               color: "var(--gold-dim)",
             }}
           >
-            Main d'emojis
+            {t("emoji.hand")}
           </span>
         </div>
         <span
@@ -37,7 +40,7 @@ export function EmojiHand({
             color: selectedCount >= 2 ? "var(--emerald)" : "var(--amber-warn)",
           }}
         >
-          {selectedCount} {selectedCount < 2 ? "(min 2)" : "choisis"}
+          {selectedCount} {selectedCount < 2 ? t("emoji.min2") : t("emoji.selected")}
         </span>
       </div>
 

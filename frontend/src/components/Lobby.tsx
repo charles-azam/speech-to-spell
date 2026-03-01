@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { API_BASE } from "../config";
+import { useLanguage } from "../hooks/useLanguage";
+import { LanguageToggle } from "./LanguageToggle";
 
 type GameMode = "same_computer" | "multi_computer";
 
@@ -8,6 +10,7 @@ interface LobbyProps {
 }
 
 export function Lobby({ onRoomCreated }: LobbyProps) {
+  const { lang, t } = useLanguage();
   const [wizardName, setWizardName] = useState("");
   const [mode, setMode] = useState<GameMode>("same_computer");
   const [joinCode, setJoinCode] = useState("");
@@ -16,7 +19,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
 
   const createRoom = async () => {
     if (!wizardName.trim()) {
-      setError("Choose a wizard name!");
+      setError(t("lobby.errorName"));
       return;
     }
     setLoading(true);
@@ -25,11 +28,11 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
     const res = await fetch(`${API_BASE}/api/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wizard_name: wizardName.trim(), mode }),
+      body: JSON.stringify({ wizard_name: wizardName.trim(), mode, lang }),
     });
 
     if (!res.ok) {
-      setError("Failed to create room");
+      setError(t("lobby.errorCreate"));
       setLoading(false);
       return;
     }
@@ -40,11 +43,11 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
 
   const joinRoom = async () => {
     if (!wizardName.trim()) {
-      setError("Choose a wizard name!");
+      setError(t("lobby.errorName"));
       return;
     }
     if (!joinCode.trim()) {
-      setError("Enter a room code!");
+      setError(t("lobby.errorCode"));
       return;
     }
     setLoading(true);
@@ -58,7 +61,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
 
     if (!res.ok) {
       const text = await res.text();
-      setError(text.includes("not found") ? "Room not found" : text.includes("full") ? "Room is full" : "Failed to join room");
+      setError(text.includes("not found") ? t("lobby.errorNotFound") : text.includes("full") ? t("lobby.errorFull") : t("lobby.errorJoin"));
       setLoading(false);
       return;
     }
@@ -69,6 +72,11 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      {/* Language toggle — top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageToggle />
+      </div>
+
       <h1
         className="text-5xl font-bold tracking-[0.08em] mb-2"
         style={{
@@ -77,11 +85,11 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
           textShadow: "0 0 40px rgba(201, 168, 76, 0.25), 0 2px 4px rgba(0,0,0,0.5)",
         }}
       >
-        Speech to Spell
+        {t("lobby.title")}
       </h1>
 
       <p className="text-sm mb-10" style={{ color: "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}>
-        A wizard duel of voice and emojis
+        {t("lobby.subtitle")}
       </p>
 
       {/* Card */}
@@ -99,13 +107,13 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
             className="text-sm font-semibold tracking-wider uppercase"
             style={{ color: "var(--gold)", fontFamily: "'Cinzel', serif", fontSize: "11px" }}
           >
-            Wizard Name
+            {t("lobby.wizardName")}
           </label>
           <input
             type="text"
             value={wizardName}
             onChange={(e) => setWizardName(e.target.value)}
-            placeholder="Enter your wizard name..."
+            placeholder={t("lobby.wizardNamePlaceholder")}
             maxLength={20}
             className="w-full px-4 py-3 rounded-lg text-base outline-none transition-colors"
             style={{
@@ -125,7 +133,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
             className="text-sm font-semibold tracking-wider uppercase"
             style={{ color: "var(--gold)", fontFamily: "'Cinzel', serif", fontSize: "11px" }}
           >
-            Game Mode
+            {t("lobby.gameMode")}
           </label>
           <div className="flex gap-2">
             <button
@@ -138,7 +146,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
                 fontFamily: "'Crimson Pro', serif",
               }}
             >
-              Same Computer
+              {t("lobby.sameComputer")}
             </button>
             <button
               onClick={() => setMode("multi_computer")}
@@ -150,7 +158,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
                 fontFamily: "'Crimson Pro', serif",
               }}
             >
-              Different Computers
+              {t("lobby.diffComputers")}
             </button>
           </div>
         </div>
@@ -167,13 +175,13 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
             opacity: loading ? 0.6 : 1,
           }}
         >
-          {loading ? "Creating..." : "Create Room"}
+          {loading ? t("lobby.creating") : t("lobby.createRoom")}
         </button>
 
         {/* Divider */}
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px" style={{ background: "var(--border-subtle)" }} />
-          <span className="text-xs" style={{ color: "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}>or join a room</span>
+          <span className="text-xs" style={{ color: "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}>{t("lobby.orJoin")}</span>
           <div className="flex-1 h-px" style={{ background: "var(--border-subtle)" }} />
         </div>
 
@@ -208,7 +216,7 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            Join
+            {t("lobby.join")}
           </button>
         </div>
 

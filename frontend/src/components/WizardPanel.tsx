@@ -1,5 +1,6 @@
 import { SpellEffect } from "./SpellEffect";
 import type { PlayerSide, VisualEffect } from "../types";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface WizardPanelProps {
   side: PlayerSide;
@@ -15,6 +16,7 @@ interface WizardPanelProps {
 }
 
 function HealthBar({ value, max }: { value: number; max: number }) {
+  const { t } = useLanguage();
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   const color = pct > 50 ? "var(--emerald)" : pct > 25 ? "var(--amber-warn)" : "var(--crimson)";
   const glowColor = pct > 50 ? "var(--emerald-glow)" : pct > 25 ? "rgba(217, 119, 6, 0.3)" : "var(--crimson-glow)";
@@ -28,7 +30,7 @@ function HealthBar({ value, max }: { value: number; max: number }) {
             className="text-xs uppercase tracking-[0.15em]"
             style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--text-secondary)" }}
           >
-            Vie
+            {t("wizard.health")}
           </span>
         </div>
         <span
@@ -84,6 +86,7 @@ export function WizardPanel({
   health,
   visualEffect,
 }: WizardPanelProps) {
+  const { t } = useLanguage();
   const isLeft = side === "left";
 
   return (
@@ -138,12 +141,14 @@ export function WizardPanel({
         >
           {name}
         </h2>
-        <span
-          className="text-xs uppercase tracking-[0.25em]"
-          style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold)" }}
-        >
-          Maintenir [{keyBind}] pour incanter
-        </span>
+        {keyBind && (
+          <span
+            className="text-xs uppercase tracking-[0.25em]"
+            style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--gold)" }}
+          >
+            {t("wizard.holdKey").replace("{key}", keyBind)}
+          </span>
+        )}
       </div>
 
       {/* Health bar */}
@@ -164,12 +169,12 @@ export function WizardPanel({
               className="text-sm uppercase tracking-[0.2em]"
               style={{ fontFamily: "'MedievalSharp', cursive", color: "var(--crimson)" }}
             >
-              Incantation...
+              {t("wizard.casting")}
             </p>
           </div>
         ) : processing ? (
           <p className="text-sm italic animate-pulse" style={{ color: "var(--gold-dim)" }}>
-            Le juge ecoute...
+            {t("wizard.judgeListening")}
           </p>
         ) : transcription ? (
           <p

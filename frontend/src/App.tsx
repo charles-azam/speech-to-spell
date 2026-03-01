@@ -4,10 +4,12 @@ import { JudgePanel } from "./components/JudgePanel";
 import { AmbientSparkles } from "./components/AmbientSparkles";
 import { PlayerControls } from "./components/PlayerControls";
 import { SpellHistory } from "./components/SpellHistory";
+import { LanguageToggle } from "./components/LanguageToggle";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useGameState } from "./hooks/useGameState";
 import { useMicrophone } from "./hooks/useMicrophone";
 import { useAudioDevices } from "./hooks/useAudioDevices";
+import { useLanguage } from "./hooks/useLanguage";
 import { useState } from "react";
 import type { PlayerSide } from "./types";
 
@@ -16,6 +18,7 @@ interface AppProps {
 }
 
 function App({ roomCode }: AppProps) {
+  const { t } = useLanguage();
   const { state, dispatch, handleServerMessage } = useGameState();
   const { devices } = useAudioDevices();
   const [leftDeviceId, setLeftDeviceId] = useState("");
@@ -124,7 +127,7 @@ function App({ roomCode }: AppProps) {
 
   const renderColumn = (side: PlayerSide) => {
     const ps = state[side];
-    const name = side === "left" ? "Wizard 1" : "Wizard 2";
+    const name = side === "left" ? t("game.wizard1") : t("game.wizard2");
     const keyBind = side === "left" ? "Q" : "P";
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
@@ -169,6 +172,9 @@ function App({ roomCode }: AppProps) {
 
       {/* Header */}
       <header className="text-center pt-6 pb-4 relative z-10">
+        <div className="absolute top-4 right-4">
+          <LanguageToggle />
+        </div>
         <h1
           className="text-4xl font-bold tracking-[0.08em]"
           style={{
@@ -189,7 +195,7 @@ function App({ roomCode }: AppProps) {
               }}
             />
             <span className="text-xs" style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-dim)" }}>
-              {connected ? "Connected" : "Disconnected"}
+              {connected ? t("status.connected") : t("status.disconnected")}
             </span>
           </div>
         </div>
@@ -209,7 +215,7 @@ function App({ roomCode }: AppProps) {
               textShadow: "0 0 40px rgba(201, 168, 76, 0.5), 0 0 80px rgba(201, 168, 76, 0.25)",
             }}
           >
-            {state.winner === "left" ? "Wizard 1" : "Wizard 2"} Triomphe !
+            {state.winner === "left" ? t("game.wizard1") : t("game.wizard2")} {t("game.triumphs")}
           </p>
         </div>
       )}

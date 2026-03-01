@@ -81,6 +81,7 @@ app.add_middleware(
 class CreateRoomRequest(BaseModel):
     wizard_name: str
     mode: str  # "same_computer" or "multi_computer"
+    lang: str = "fr"  # "fr" or "en"
 
 
 class CreateRoomResponse(BaseModel):
@@ -110,7 +111,7 @@ def health() -> dict[str, str]:
 
 @app.post("/api/rooms")
 def api_create_room(body: CreateRoomRequest) -> CreateRoomResponse:
-    room = create_room(wizard_name=body.wizard_name)
+    room = create_room(wizard_name=body.wizard_name, lang=body.lang)
 
     if body.mode == "same_computer":
         fill_both_sides(code=room.code, wizard_name=body.wizard_name)
@@ -268,13 +269,17 @@ async def broadcast_judge_voice(room_code: str, comment: str) -> None:
 # --- Game logic ---
 
 
-def validate_emojis(selected_emojis: list[str], player_hand: list[str]) -> str | None:
+def validate_emojis(selected_emojis: list[str], player_hand: list[str], lang: str = "fr") -> str | None:
     """Validate that selected emojis are in the player's hand. Returns error message or None."""
     if len(selected_emojis) < MIN_EMOJIS:
+        if lang == "en":
+            return f"You must pick at least {MIN_EMOJIS} emojis."
         return f"Tu dois choisir au moins {MIN_EMOJIS} emojis."
 
     for emoji in selected_emojis:
         if emoji not in player_hand:
+            if lang == "en":
+                return f"Emoji {emoji} is not in your hand!"
             return f"L'emoji {emoji} n'est pas dans ta main !"
 
     return None
@@ -299,6 +304,7 @@ async def process_spell(
         transcription=transcription,
         game_context=context,
         explanation=explanation,
+        lang=room.lang,
     )
 
     # The judge decides attack vs heal
@@ -427,6 +433,7 @@ async def websocket_endpoint(
                 error = validate_emojis(
                     selected_emojis=selected_emojis,
                     player_hand=player_state.emoji_hand,
+                    lang=room.lang,
                 )
                 if error:
                     await broadcast_to_room(
@@ -439,9 +446,10 @@ async def websocket_endpoint(
                 if "audio" in message:
                     audio_bytes = base64.b64decode(message["audio"])
                     if len(audio_bytes) < 1000:
+                        reason = "Speak louder, wizard!" if room.lang == "en" else "Parle plus fort, sorcier !"
                         await broadcast_to_room(
                             room_code=room_code,
-                            message={"type": "spell_fizzle", "player": player, "reason": "Parle plus fort, sorcier !"},
+                            message={"type": "spell_fizzle", "player": player, "reason": reason},
                         )
                         continue
                     text = await asyncio.to_thread(transcribe, audio_bytes=audio_bytes)
@@ -454,9 +462,10 @@ async def websocket_endpoint(
                         },
                     )
                     if not text.strip():
+                        reason = "The judge heard nothing..." if room.lang == "en" else "Le juge n'a rien entendu..."
                         await broadcast_to_room(
                             room_code=room_code,
-                            message={"type": "spell_fizzle", "player": player, "reason": "Le juge n'a rien entendu..."},
+                            message={"type": "spell_fizzle", "player": player, "reason": reason},
                         )
                         continue
                 elif "text" in message:
@@ -530,6 +539,7 @@ async def websocket_endpoint(
                 error = validate_emojis(
                     selected_emojis=selected_emojis,
                     player_hand=player_state.emoji_hand,
+                    lang=room.lang,
                 )
                 if error:
                     await broadcast_to_room(

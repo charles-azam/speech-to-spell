@@ -1,8 +1,12 @@
+import { useLanguage } from "../hooks/useLanguage";
+
 interface SpellHistoryProps {
   spells: string[];
 }
 
 export function SpellHistory({ spells }: SpellHistoryProps) {
+  const { t } = useLanguage();
+
   if (spells.length === 0) return null;
 
   // Most recent first
@@ -20,7 +24,7 @@ export function SpellHistory({ spells }: SpellHistoryProps) {
             color: "var(--gold-dim)",
           }}
         >
-          Sorts lancés
+          {t("spells.title")}
         </span>
       </div>
       <div

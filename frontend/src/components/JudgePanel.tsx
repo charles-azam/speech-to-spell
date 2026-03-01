@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Verdict } from "../types";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface JudgePanelProps {
   verdict: Verdict | null;
@@ -41,19 +42,21 @@ function TypewriterText({ text, speed = 30 }: { text: string; speed?: number }) 
 }
 
 function VerdictStamp({ verdict }: { verdict: Verdict }) {
+  const { t } = useLanguage();
+
   const config = {
     YES: {
-      text: "ACCEPTE !",
+      text: t("judge.accepted"),
       color: "var(--emerald)",
       shadow: "0 0 30px var(--emerald-glow), 0 0 60px var(--emerald-glow)",
     },
     NO: {
-      text: "REJETE !",
+      text: t("judge.rejected"),
       color: "var(--crimson)",
       shadow: "0 0 30px var(--crimson-glow), 0 0 60px var(--crimson-glow)",
     },
     EXPLAIN: {
-      text: "EXPLIQUE !",
+      text: t("judge.explain"),
       color: "var(--amber-warn)",
       shadow: "0 0 30px rgba(217, 119, 6, 0.4), 0 0 60px rgba(217, 119, 6, 0.2)",
     },
@@ -87,6 +90,8 @@ export function JudgePanel({
   spellName,
   damage,
 }: JudgePanelProps) {
+  const { t } = useLanguage();
+
   const verdictGlow = verdict === "YES"
     ? "var(--emerald)"
     : verdict === "NO"
@@ -110,7 +115,7 @@ export function JudgePanel({
       {/* Decorative top ornament */}
       <div className="ornate-rule mb-4 w-full px-2" style={{ color: "var(--gold-dim)" }}>
         <span style={{ fontFamily: "'MedievalSharp', cursive", fontSize: "9px", letterSpacing: "0.3em", textTransform: "uppercase" }}>
-          Tribunal
+          {t("judge.tribunal")}
         </span>
       </div>
 
@@ -134,7 +139,7 @@ export function JudgePanel({
           textShadow: "0 0 20px rgba(201, 168, 76, 0.3)",
         }}
       >
-        Le Juge
+        {t("judge.title")}
       </h3>
 
       {/* Speech bubble — ornate scroll */}
@@ -179,7 +184,7 @@ export function JudgePanel({
               className="text-xs italic"
               style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-dim)" }}
             >
-              Le Juge delibere...
+              {t("judge.deliberating")}
             </p>
           </div>
         ) : comment ? (
@@ -219,7 +224,7 @@ export function JudgePanel({
             className="text-xs text-center italic py-3"
             style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-dim)" }}
           >
-            En attente du prochain sort...
+            {t("judge.waiting")}
           </p>
         )}
       </div>

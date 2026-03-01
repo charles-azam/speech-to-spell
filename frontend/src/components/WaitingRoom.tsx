@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useLanguage } from "../hooks/useLanguage";
+import { LanguageToggle } from "./LanguageToggle";
 
 interface WaitingRoomProps {
   roomCode: string;
@@ -7,6 +9,7 @@ interface WaitingRoomProps {
 }
 
 export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const copyCode = async () => {
@@ -17,6 +20,11 @@ export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      {/* Language toggle — top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageToggle />
+      </div>
+
       <h1
         className="text-4xl font-bold tracking-[0.08em] mb-2"
         style={{
@@ -37,14 +45,14 @@ export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps
         }}
       >
         <p className="text-sm" style={{ color: "var(--text-secondary)", fontFamily: "'Crimson Pro', serif" }}>
-          Welcome, <span style={{ color: "var(--gold)" }}>{wizardName}</span>
+          {t("waiting.welcome")} <span style={{ color: "var(--gold)" }}>{wizardName}</span>
         </p>
 
         <p
           className="text-sm tracking-wider uppercase"
           style={{ color: "var(--text-dim)", fontFamily: "'Cinzel', serif", fontSize: "11px" }}
         >
-          Room Code
+          {t("waiting.roomCode")}
         </p>
 
         {/* Big room code */}
@@ -63,7 +71,7 @@ export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps
         </button>
 
         <p className="text-xs" style={{ color: copied ? "var(--emerald)" : "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}>
-          {copied ? "Copied!" : "Click to copy"}
+          {copied ? t("waiting.copied") : t("waiting.clickCopy")}
         </p>
 
         {/* Waiting animation */}
@@ -81,12 +89,12 @@ export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps
             ))}
           </div>
           <p className="text-sm" style={{ color: "var(--text-secondary)", fontFamily: "'Crimson Pro', serif" }}>
-            Waiting for opponent...
+            {t("waiting.waitingOpponent")}
           </p>
         </div>
 
         <p className="text-xs mt-2" style={{ color: "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}>
-          Share this code with your opponent so they can join.
+          {t("waiting.shareCode")}
         </p>
 
         <button
@@ -99,7 +107,7 @@ export function WaitingRoom({ roomCode, wizardName, onCancel }: WaitingRoomProps
             fontFamily: "'Crimson Pro', serif",
           }}
         >
-          Cancel
+          {t("waiting.cancel")}
         </button>
       </div>
     </div>
