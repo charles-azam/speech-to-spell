@@ -178,7 +178,7 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
   const latencyPoints = [
     "<b>Voxtral Mini</b> — Fastest SOTA multilingual STT. Transcription in ~500ms.",
     "<b>Ministral 8B</b> — Chosen over larger models for speed. Fast multilingual inference, single tool call per task (no multi-turn). 3 independent tasks (judge, emoji inference, commentary) all use the same lightweight model.",
-    "<b>Minimalist commentator agent</b> — Homemade agent pattern: each call sends only a system prompt + 1 user message with the last 5 events. No conversation history accumulates — context is manually managed to stay tiny.",
+    "<b>Minimalist commentator agent</b> — Generates a Marc & Sophie dialogue via multi-tool-call (marc_says / sophie_says). Loops autonomously (after every spell + idle every 20s). Each call: system prompt + 1 user message with last 5 events only — no conversation history.",
     "<b>Single tool calls everywhere</b> — Judge = 1 tool call. Emoji inference = 1 tool call. No agentic loops, no back-and-forth. Minimizes round trips.",
     "<b>EC2 in Europe</b> — Server co-located with Mistral's EU inference endpoints. Minimal network latency.",
     "<b>Pre-generated sound bank</b> — 25 sounds generated offline. Instant disk lookup at runtime, zero generation latency.",
@@ -248,7 +248,7 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
             <FlowNode
               icon="🎭"
               label="Commentator Agent"
-              sublabel="Marc & Sophie · Last 5 events"
+              sublabel="Generates Marc & Sophie dialogue"
               badge="Mistral"
               badgeColor="var(--gold)"
               glowColor="rgba(201, 168, 76, 0.15)"
@@ -371,10 +371,10 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
           badgeColor="var(--gold)"
           glowColor="rgba(201, 168, 76, 0.1)"
           bullets={[
-            "Minimalist homemade agent pattern",
-            "System prompt + 1 user message (last 5 events only)",
-            "No conversation history — context manually managed",
-            "Fire-and-forget: never blocks the game loop",
+            "<b>Generates a dialogue</b>: LLM calls <code>marc_says</code> and <code>sophie_says</code> tools to build a back-and-forth between two commentators",
+            "<b>Loops autonomously</b>: fires after every spell + idle loop every 20s fills silence with banter",
+            "Minimalist agent: system prompt + 1 user message (last 5 events). No conversation history — context manually managed to stay tiny",
+            "Fire-and-forget: runs async, never blocks the game loop",
           ]}
           delay={1.6}
         />

@@ -19,7 +19,7 @@ Two wizards face off in a magical arena. Speak your spells out loud — an AI ju
 1. **Speak** your spell into the mic (push-to-talk or text input)
 2. **Voxtral Mini** transcribes your voice in ~500ms
 3. **Judge Agent** (Ministral 8B) — evaluates the spell in a single tool call: verdict, damage, emoji inference, visual effects. Blocks the game loop (verdict is needed).
-4. **Commentator Agent** (Ministral 8B) — fire-and-forget, runs async after the judge. Minimalist homemade agent: system prompt + 1 message with the last 5 events, no conversation history.
+4. **Commentator Agent** (Ministral 8B) — generates a dialogue between Marc & Sophie via multi-tool-call (`marc_says` / `sophie_says`). Loops autonomously: fires after every spell + idle loop every 20s fills silence with banter. Fire-and-forget, never blocks the game loop.
 5. **ElevenLabs** voices the judge's verdict and the commentator duo (Marc & Sophie)
 6. **Game effects** — visual animations, sound effects, damage/healing applied
 
@@ -29,7 +29,7 @@ Two wizards face off in a magical arena. Speak your spells out loud — an AI ju
 |---|---|---|
 | **Voxtral Mini** | `voxtral-mini-latest` | Speech-to-text — every spell passes through Voxtral. ~500ms per transcription. |
 | **Ministral 8B** | `ministral-8b-latest` | **Judge Agent** — single tool call evaluates spell (verdict + damage + effects + emoji inference). Blocks the game loop. |
-| | | **Commentator Agent** — minimalist homemade agent, sends only system prompt + 1 user message with last 5 events. No conversation history. Fire-and-forget (async). |
+| | | **Commentator Agent** — generates a Marc & Sophie dialogue via multi-tool-call (`marc_says`/`sophie_says`). Loops autonomously (after every spell + idle every 20s). Minimalist: system prompt + 1 message with last 5 events, no history. |
 
 ## Latency-first design
 
@@ -37,7 +37,7 @@ Every design decision optimizes for real-time gameplay:
 
 - **Voxtral Mini + Ministral 8B** chosen for fastest multilingual inference — not the biggest models, the fastest
 - **Two separate agents, both Ministral 8B** — Judge Agent (blocking, single tool call) and Commentator Agent (async, fire-and-forget). No agentic loops, no multi-turn.
-- **Minimalist commentator agent** — homemade agent pattern: each call sends only system prompt + 1 user message with the last 5 events. No conversation history accumulates — context is manually managed to stay tiny.
+- **Commentator agent loops autonomously** — fires after every spell + idle loop every 20s fills silence. Generates Marc & Sophie dialogue via multi-tool-call (`marc_says`/`sophie_says`). Each call: system prompt + 1 message with last 5 events only — no conversation history, context manually managed.
 - **EC2 in Europe** — server co-located with Mistral's EU inference endpoints. Minimal network latency.
 - **Pre-generated sound bank** — 25 sounds generated offline via ElevenLabs. Instant disk lookup at runtime.
 - **Fire-and-forget commentary** — commentator runs asynchronously after the judge, never blocks the game loop
