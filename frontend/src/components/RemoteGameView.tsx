@@ -24,7 +24,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
   const { t } = useLanguage();
   const opponent: PlayerSide = side === "left" ? "right" : "left";
   const { state, dispatch, handleServerMessage: baseHandler } = useGameState();
-  const { devices } = useAudioDevices();
+  const { devices, permissionDenied: micPermissionDenied } = useAudioDevices();
   const [deviceId, setDeviceId] = useState("");
   const [showRules, setShowRules] = useState(false);
   const deviceIdRef = useRef(deviceId);
@@ -64,7 +64,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
     [side, dispatch],
   );
 
-  const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
+  const { recording, startRecording, stopRecording, micError } = useMicrophone(handleRecordingComplete);
 
   // Duck commentator while recording
   useEffect(() => {
@@ -178,6 +178,26 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
           <span style={{ color: "var(--gold-dim)", fontSize: "10px" }}>{"\u2726"} {"\u2726"} {"\u2726"}</span>
         </div>
       </header>
+
+      {/* Mic error banner */}
+      {(micPermissionDenied || micError) && (
+        <div
+          className="text-center py-3 px-6 mx-auto max-w-lg rounded-lg relative z-10"
+          style={{
+            background: "rgba(198, 40, 40, 0.15)",
+            border: "1px solid var(--crimson)",
+            color: "var(--text-primary)",
+            fontFamily: "'Crimson Pro', serif",
+          }}
+        >
+          <p className="text-sm">
+            {micError || "Microphone permission denied. Allow mic access in your browser settings and reload."}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
+            You can still play using text input below.
+          </p>
+        </div>
+      )}
 
       {/* Winner banner */}
       {state.winner && (

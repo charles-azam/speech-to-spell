@@ -13,6 +13,8 @@ let duckCount = 0;
 
 function getAudioCtx(): AudioContext {
   if (!audioCtx) audioCtx = new AudioContext();
+  // Chrome autoplay policy: context starts suspended, must resume on user gesture
+  if (audioCtx.state === "suspended") audioCtx.resume();
   return audioCtx;
 }
 

@@ -4,6 +4,7 @@ export function useMicrophone(
   onRecordingComplete: (audioBase64: string) => void,
 ) {
   const [recording, setRecording] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -16,11 +17,28 @@ export function useMicrophone(
       streamRef.current.getTracks().forEach((track) => track.stop());
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: deviceId
-        ? { deviceId: { exact: deviceId } }
-        : true,
-    });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: deviceId
+          ? { deviceId: { exact: deviceId } }
+          : true,
+      });
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "Unknown";
+      if (name === "NotAllowedError") {
+        setMicError("Microphone permission denied. Allow mic access in your browser settings and reload.");
+      } else if (name === "NotFoundError") {
+        setMicError("No microphone found. Connect a mic and reload.");
+      } else {
+        setMicError(`Microphone error: ${name}. Check your browser settings.`);
+      }
+      console.warn("getUserMedia failed:", err);
+      return;
+    }
+
+    // Clear any previous error on success
+    setMicError(null);
     streamRef.current = stream;
 
     chunksRef.current = [];
@@ -58,5 +76,5 @@ export function useMicrophone(
     }
   }, []);
 
-  return { recording, startRecording, stopRecording };
+  return { recording, startRecording, stopRecording, micError };
 }

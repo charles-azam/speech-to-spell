@@ -8,14 +8,23 @@ export interface AudioDevice {
 export function useAudioDevices() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const loadDevices = useCallback(async () => {
+    if (permissionDenied) return;
+
     if (!permissionGranted) {
-      const tempStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-      tempStream.getTracks().forEach((track) => track.stop());
-      setPermissionGranted(true);
+      try {
+        const tempStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        tempStream.getTracks().forEach((track) => track.stop());
+        setPermissionGranted(true);
+      } catch (err) {
+        console.warn("Microphone permission denied or unavailable:", err);
+        setPermissionDenied(true);
+        return;
+      }
     }
 
     const deviceList = await navigator.mediaDevices.enumerateDevices();
@@ -29,7 +38,7 @@ export function useAudioDevices() {
       }));
 
     setDevices(audioInputs);
-  }, [permissionGranted]);
+  }, [permissionGranted, permissionDenied]);
 
   useEffect(() => {
     loadDevices();
@@ -42,5 +51,5 @@ export function useAudioDevices() {
       navigator.mediaDevices.removeEventListener("devicechange", handler);
   }, [loadDevices]);
 
-  return { devices, permissionGranted };
+  return { devices, permissionGranted, permissionDenied };
 }
