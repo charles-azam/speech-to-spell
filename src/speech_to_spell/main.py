@@ -290,6 +290,7 @@ _commentary_tasks: dict[str, asyncio.Task] = {}  # room_code → background idle
 
 IDLE_COMMENTARY_INTERVAL_S = 20  # how often idle commentary fires
 IDLE_THRESHOLD_S = 12  # seconds of silence before commentators fill the gap
+IDLE_COMMENTARY_MAX_S = 300  # stop commentating after 5 minutes of no spells
 
 
 async def _broadcast_commentary_lines(room: Room, lines: list) -> None:
@@ -352,6 +353,10 @@ async def idle_commentary_loop(room: Room) -> None:
 
         now = time.time()
         idle_for = now - room.last_spell_at if room.last_spell_at > 0 else now - room.created_at
+
+        if idle_for >= IDLE_COMMENTARY_MAX_S:
+            logger.info(f"Idle commentary stopped for room {room.code} after {int(idle_for)}s of inactivity")
+            break
 
         if idle_for >= IDLE_THRESHOLD_S:
             # Wait for judge to finish
