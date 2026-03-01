@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { API_BASE } from "../config";
+import { API_BASE, getPassword } from "../config";
 import type { ServerMessage, ClientMessage, CommentatorSpeaker } from "../types";
 
 // Singleton AudioContext + commentator gain node — lives outside React
@@ -114,13 +114,14 @@ export function useWebSocket(
   }, []);
 
   const buildWsUrl = useCallback((code: string, s: string): string => {
+    const pw = encodeURIComponent(getPassword());
     if (API_BASE) {
       const url = new URL(API_BASE);
       const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
-      return `${wsProtocol}//${url.host}/ws/${code}?side=${s}`;
+      return `${wsProtocol}//${url.host}/ws/${code}?side=${s}&password=${pw}`;
     }
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws/${code}?side=${s}`;
+    return `${protocol}//${window.location.host}/ws/${code}?side=${s}&password=${pw}`;
   }, []);
 
   const connect = useCallback(() => {

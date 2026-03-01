@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -46,6 +46,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ENABLE_SOUND_EFFECTS = True
+GAME_PASSWORD = os.environ.get("GAME_PASSWORD", "")
+
+
+def verify_password(x_game_password: str = Header(default="")) -> None:
+    if GAME_PASSWORD and x_game_password != GAME_PASSWORD:
+        raise HTTPException(status_code=403, detail="Wrong password")
 
 COMMENTATOR_MALE_VOICE_ID = os.environ.get("COMMENTATOR_MALE_VOICE_ID", "TX3LPaxmHKxFdv7VOQHJ")
 COMMENTATOR_FEMALE_VOICE_ID = os.environ.get("COMMENTATOR_FEMALE_VOICE_ID", "XB0fDUnXU5powFXDhCwa")
@@ -115,8 +121,13 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/auth")
+def api_auth(_: None = Depends(verify_password)) -> dict[str, bool]:
+    return {"ok": True}
+
+
 @app.post("/api/rooms")
-def api_create_room(body: CreateRoomRequest) -> CreateRoomResponse:
+def api_create_room(body: CreateRoomRequest, _: None = Depends(verify_password)) -> CreateRoomResponse:
     room = create_room(wizard_name=body.wizard_name, lang=body.lang)
 
     if body.mode == "same_computer":
@@ -129,7 +140,7 @@ def api_create_room(body: CreateRoomRequest) -> CreateRoomResponse:
 
 
 @app.post("/api/rooms/{code}/join")
-def api_join_room(code: str, body: JoinRoomRequest) -> JoinRoomResponse:
+def api_join_room(code: str, body: JoinRoomRequest, _: None = Depends(verify_password)) -> JoinRoomResponse:
     room = get_room(code=code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -140,7 +151,7 @@ def api_join_room(code: str, body: JoinRoomRequest) -> JoinRoomResponse:
 
 
 @app.get("/api/rooms/{code}")
-def api_room_status(code: str) -> RoomStatusResponse:
+def api_room_status(code: str, _: None = Depends(verify_password)) -> RoomStatusResponse:
     room = get_room(code=code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -531,7 +542,12 @@ async def websocket_endpoint(
     websocket: WebSocket,
     room_code: str,
     side: str = Query(default="both"),
+    password: str = Query(default=""),
 ) -> None:
+    if GAME_PASSWORD and password != GAME_PASSWORD:
+        await websocket.close(code=4003, reason="Wrong password")
+        return
+
     room_code = room_code.upper()
     room = get_room(code=room_code)
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_BASE } from "../config";
+import { API_BASE, authHeaders } from "../config";
 import { useLanguage } from "../hooks/useLanguage";
 import { LanguageToggle } from "./LanguageToggle";
 
@@ -38,7 +38,7 @@ export function Lobby({ onRoomCreated, onShowArchitecture }: LobbyProps) {
 
     const res = await fetch(`${API_BASE}/api/rooms`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(payload),
     });
 
@@ -66,7 +66,7 @@ export function Lobby({ onRoomCreated, onShowArchitecture }: LobbyProps) {
 
     const res = await fetch(`${API_BASE}/api/rooms/${joinCode.trim().toUpperCase()}/join`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ wizard_name: wizardName.trim() }),
     });
 

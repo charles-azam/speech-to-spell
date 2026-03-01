@@ -256,6 +256,15 @@
 - Polished hackathon submission README
 - Pitch, flow diagram, Mistral models table, latency-first philosophy, ElevenLabs integration, tech stack, quick start
 
+### Password protection
+- Simple password gate to prevent unauthorized API credit usage
+- `GAME_PASSWORD` env var in `.env` — if set, all endpoints require it
+- Backend: `verify_password` dependency on all REST endpoints (`/api/auth`, `/api/rooms`, `/api/rooms/{code}/join`, `/api/rooms/{code}`), WebSocket checks `password` query param
+- Frontend: `PasswordGate` component in `GameRouter.tsx` — shown before lobby, stores password in `sessionStorage`
+- `config.ts`: `getPassword()`, `setPassword()`, `authHeaders()` helpers — all API calls include `X-Game-Password` header
+- WebSocket URL includes `&password=...` query param
+- If no `GAME_PASSWORD` env var is set, everything works without auth (backwards compatible)
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **VAD (Silero)** — not needed for turn-based
