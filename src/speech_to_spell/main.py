@@ -5,6 +5,10 @@ import logging
 import os
 
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+
+load_dotenv()
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query

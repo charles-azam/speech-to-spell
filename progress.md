@@ -159,12 +159,21 @@
 - **Sound bank expanded**: 5 → 25 sounds (water_splash, wind_howl, earthquake, healing, poison, ghost, metal_clash, explosion_big, arcane, animal_roar, teleport, freeze, fire_crackle, choir, swarm, laughter, cosmic, shield, blood, time)
 - **ExplainSpellMessage now includes `player` field**: frontend sends which player is explaining, fixing the per-player EXPLAIN flow
 
+### Deployment — Docker + nginx + Cloudflare
+- `Dockerfile`: installs uv, syncs deps from lockfile, copies source + sounds_cache, runs uvicorn on 0.0.0.0:8000
+- `docker-compose.yml`: backend service (Dockerfile + .env) + nginx:alpine reverse proxy (port 80)
+- `deploy/nginx.conf`: proxies `/ws/` with WebSocket upgrade headers (86400s timeout), `/api/` and `/health` to backend
+- `deploy/setup.sh`: one-time VPS setup script (installs Docker, clones repo)
+- `.dockerignore`: excludes .venv, frontend, .git, node_modules, .env
+- `main.py`: added `load_dotenv()` so .env is loaded in production
+- **Architecture**: Cloudflare Pages (frontend) + Hetzner VPS (backend via Docker) + Cloudflare DNS proxy (SSL termination)
+- **Backend redeploy**: `git pull && docker compose up -d --build`
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **ElevenLabs judge voice** — TTS the French comment
 - **Commentator** — separate LLM-generated play-by-play with different voice
 - **VAD (Silero)** — not needed for turn-based
-- **Deployment configs** — systemd service file, nginx config, certbot SSL (architecture is ready, files not yet created)
 
 ## How to run
 ```bash
