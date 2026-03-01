@@ -42,7 +42,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
     [baseHandler, side],
   );
 
-  const { send, connected, currentSpeaker } = useWebSocket(handleServerMessage, roomCode, side);
+  const { send, connected, currentSpeaker, duckCommentator, unduckCommentator } = useWebSocket(handleServerMessage, roomCode, side);
   const sendRef = useRef(send);
   sendRef.current = send;
 
@@ -65,6 +65,12 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
   );
 
   const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
+
+  // Duck commentator while recording
+  useEffect(() => {
+    if (recording) duckCommentator();
+    else unduckCommentator();
+  }, [recording, duckCommentator, unduckCommentator]);
 
   const handleTextSpell = useCallback(
     (player: PlayerSide, text: string) => {

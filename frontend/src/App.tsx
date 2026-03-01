@@ -38,7 +38,7 @@ function App({ roomCode }: AppProps) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const { send, connected, currentSpeaker } = useWebSocket(handleServerMessage, roomCode, "both");
+  const { send, connected, currentSpeaker, duckCommentator, unduckCommentator } = useWebSocket(handleServerMessage, roomCode, "both");
   const sendRef = useRef(send);
   sendRef.current = send;
 
@@ -65,6 +65,12 @@ function App({ roomCode }: AppProps) {
   );
 
   const { recording, startRecording, stopRecording } = useMicrophone(handleRecordingComplete);
+
+  // Duck commentator while recording
+  useEffect(() => {
+    if (recording) duckCommentator();
+    else unduckCommentator();
+  }, [recording, duckCommentator, unduckCommentator]);
 
   const handleTextSpell = useCallback(
     (player: PlayerSide, text: string) => {

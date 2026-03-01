@@ -2,39 +2,73 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { API_BASE } from "../config";
 import type { ServerMessage, ClientMessage, CommentatorSpeaker } from "../types";
 
-// Singleton AudioContext — lives outside React, immune to re-renders
+// Singleton AudioContext + commentator gain node — lives outside React
 let audioCtx: AudioContext | null = null;
+let commentatorGain: GainNode | null = null;
+
+const COMMENTATOR_DUCK_VOLUME = 0.1;
+const COMMENTATOR_FULL_VOLUME = 1.0;
+// Track duck requests so overlapping ducks don't fight
+let duckCount = 0;
 
 function getAudioCtx(): AudioContext {
   if (!audioCtx) audioCtx = new AudioContext();
   return audioCtx;
 }
 
-function playSound(base64: string) {
-  const ctx = getAudioCtx();
+function getCommentatorGain(): GainNode {
+  if (!commentatorGain) {
+    const ctx = getAudioCtx();
+    commentatorGain = ctx.createGain();
+    commentatorGain.connect(ctx.destination);
+  }
+  return commentatorGain;
+}
+
+function duckCommentator() {
+  duckCount++;
+  const gain = getCommentatorGain();
+  gain.gain.setTargetAtTime(COMMENTATOR_DUCK_VOLUME, getAudioCtx().currentTime, 0.05);
+}
+
+function unduckCommentator() {
+  duckCount = Math.max(0, duckCount - 1);
+  if (duckCount === 0) {
+    const gain = getCommentatorGain();
+    gain.gain.setTargetAtTime(COMMENTATOR_FULL_VOLUME, getAudioCtx().currentTime, 0.15);
+  }
+}
+
+function decodeBase64(base64: string): ArrayBuffer {
   const raw = atob(base64);
   const buf = new ArrayBuffer(raw.length);
   const view = new Uint8Array(buf);
   for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-  ctx.decodeAudioData(buf).then((decoded) => {
+  return buf;
+}
+
+/** Play audio at full volume, ducking the commentator while it plays. */
+function playSoundDuckingCommentator(base64: string) {
+  const ctx = getAudioCtx();
+  duckCommentator();
+  ctx.decodeAudioData(decodeBase64(base64)).then((decoded) => {
     const source = ctx.createBufferSource();
     source.buffer = decoded;
     source.connect(ctx.destination);
+    source.onended = () => unduckCommentator();
     source.start();
   });
 }
 
-function playSoundAsync(base64: string): Promise<void> {
+/** Play audio through the commentator gain node (can be ducked). */
+function playCommentatorAsync(base64: string): Promise<void> {
   const ctx = getAudioCtx();
-  const raw = atob(base64);
-  const buf = new ArrayBuffer(raw.length);
-  const view = new Uint8Array(buf);
-  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-  return ctx.decodeAudioData(buf).then((decoded) => {
+  const gain = getCommentatorGain();
+  return ctx.decodeAudioData(decodeBase64(base64)).then((decoded) => {
     return new Promise<void>((resolve) => {
       const source = ctx.createBufferSource();
       source.buffer = decoded;
-      source.connect(ctx.destination);
+      source.connect(gain);
       source.onended = () => resolve();
       source.start();
     });
@@ -69,7 +103,7 @@ export function useWebSocket(
     while (commentatorQueueRef.current.length > 0) {
       const item = commentatorQueueRef.current.shift()!;
       setCurrentSpeaker(item.speaker);
-      await playSoundAsync(item.audio);
+      await playCommentatorAsync(item.audio);
       // Small pause between lines for natural pacing
       await new Promise<void>((r) => setTimeout(r, 300));
     }
@@ -113,7 +147,7 @@ export function useWebSocket(
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as ServerMessage;
       if (msg.type === "sound_effect" || msg.type === "judge_voice") {
-        playSound(msg.audio);
+        playSoundDuckingCommentator(msg.audio);
         return;
       }
       if (msg.type === "commentator_voice") {
@@ -145,5 +179,5 @@ export function useWebSocket(
     }
   }, []);
 
-  return { send, connected, currentSpeaker };
+  return { send, connected, currentSpeaker, duckCommentator, unduckCommentator };
 }
