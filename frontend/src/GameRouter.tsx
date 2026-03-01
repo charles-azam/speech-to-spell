@@ -50,6 +50,13 @@ function PasswordGate({ onSuccess }: { onSuccess: () => void }) {
       >
         Speech to Spell
       </h1>
+      <p
+        className="text-sm text-center mb-6 max-w-sm leading-relaxed"
+        style={{ color: "var(--text-dim)", fontFamily: "'Crimson Pro', serif" }}
+      >
+        Due to unexpected demand and limited API credits, the demo is no longer publicly available.
+        Please contact us to get the password and try it out!
+      </p>
       <div
         className="w-full max-w-sm rounded-xl p-8 flex flex-col gap-4"
         style={{
