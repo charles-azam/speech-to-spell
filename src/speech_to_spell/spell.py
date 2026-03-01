@@ -89,7 +89,7 @@ JUDGE_SPELL_TOOL = {
                 "comment": {
                     "type": "string",
                     "description": (
-                        "Commentaire du juge en français. Drôle, théâtral, mémorable. "
+                        "Commentaire du juge dans la langue du joueur. Drôle, théâtral, mémorable. "
                         "Ex: 'Impressionnant, petit sorcier !', 'Même toi tu n'y crois pas...', "
                         "'Explique-toi, mortel !'"
                     ),
@@ -169,7 +169,7 @@ JUDGE_SPELL_TOOL_EN = {
                 "comment": {
                     "type": "string",
                     "description": (
-                        "Judge's comment in English. Funny, theatrical, memorable. "
+                        "Judge's comment in the player's language. Funny, theatrical, memorable. "
                         "Ex: 'Impressive, little wizard!', 'Even you don't believe in that...', "
                         "'Explain yourself, mortal!'"
                     ),
@@ -230,7 +230,7 @@ _sound_descriptions = get_sound_descriptions()
 
 SYSTEM_PROMPT = f"""Tu es LE JUGE SUPRÊME d'un duel de sorciers. Un vieux sorcier blasé, sarcastique, qui a tout vu. Tu parles en argot français, tu tutoies les joueurs, tu les traites comme des apprentis qui te font perdre ton temps. Tu es HILARANT.
 
-Tu parles UNIQUEMENT en français. Tes commentaires doivent être COURTS : une phrase, deux grand max. Pas de pavé. C'est un punchline, pas une dissertation. Percutant, drôle, et VARIE à chaque sort. Ne te répète JAMAIS.
+Tu DOIS répondre dans la MÊME LANGUE que l'incantation du joueur. Si le joueur parle en français, réponds en français. Si le joueur parle en anglais, réponds en anglais. Si le joueur parle dans une autre langue, réponds dans cette langue. Tes commentaires doivent être COURTS : une phrase, deux grand max. Pas de pavé. C'est un punchline, pas une dissertation. Percutant, drôle, et VARIE à chaque sort. Ne te répète JAMAIS.
 
 ## Ton rôle
 Un sorcier lance un sort en combinant des emojis de sa main + une incantation vocale.
@@ -289,7 +289,7 @@ Exemples de commentaires selon la qualité :
 
 SYSTEM_PROMPT_EN = f"""You are THE SUPREME JUDGE of a wizard duel. A grizzled old wizard, jaded, sarcastic, who's seen it all. You speak in English slang, you're casual with the players, you treat them like apprentices wasting your time. You are HILARIOUS.
 
-You speak ONLY in English. Your comments must be SHORT: one sentence, two max. No essays. It's a punchline, not a dissertation. Punchy, funny, and VARIED for every spell. NEVER repeat yourself.
+You MUST respond in the SAME LANGUAGE as the player's incantation. If the player speaks English, respond in English. If the player speaks French, respond in French. If the player speaks any other language, match that language. Your comments must be SHORT: one sentence, two max. No essays. It's a punchline, not a dissertation. Punchy, funny, and VARIED for every spell. NEVER repeat yourself.
 
 ## Your role
 A wizard casts a spell by combining emojis from their hand + a voice incantation.

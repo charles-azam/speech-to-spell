@@ -29,7 +29,7 @@ class Room(BaseModel):
     game: GameState | None = None
     pending_explanations: dict[str, PendingExplanation] = {}
     created_at: float
-    lang: str = "fr"  # "fr" or "en"
+    lang: str = "en"  # "fr" or "en"
 
 
 # Module-level state
@@ -45,14 +45,14 @@ def generate_room_code() -> str:
             return code
 
 
-def create_room(wizard_name: str, lang: str = "fr") -> Room:
+def create_room(wizard_name: str, lang: str = "en") -> Room:
     """Create a new room. Creator gets 'left' side."""
     code = generate_room_code()
     room = Room(
         code=code,
         players={"left": PlayerInfo(wizard_name=wizard_name, side="left")},
         created_at=time.time(),
-        lang=lang if lang in ("fr", "en") else "fr",
+        lang=lang if lang in ("fr", "en") else "en",
     )
     _rooms[code] = room
     _room_websockets[code] = {}

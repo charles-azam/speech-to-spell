@@ -81,7 +81,7 @@ app.add_middleware(
 class CreateRoomRequest(BaseModel):
     wizard_name: str
     mode: str  # "same_computer" or "multi_computer"
-    lang: str = "fr"  # "fr" or "en"
+    lang: str = "en"  # "fr" or "en"
 
 
 class CreateRoomResponse(BaseModel):
