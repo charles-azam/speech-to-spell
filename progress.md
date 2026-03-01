@@ -73,6 +73,15 @@
 - **Backend**: `main.py` sends `sticker_url` in `spell_result` (from `get_best_sticker`)
 - **Tests**: `tests/test_sticker_fetch.py` — unit tests (mocked) + one integration test (downloads one sticker to `output_test/` when `KLIPY_API_KEY` is set)
 
+### GameTileNet sticker fallback
+- When Klipy is not configured or returns no result, **GameTileNet** is used as a local semantic sticker source.
+- **graphics_factory/sticker_gametilenet.py**: loads `2024-GameTileNet/object_embedding_index.jsonl`, embeds the spell name with `all-MiniLM-L6-v2` (via optional dep `sentence-transformers`), and returns the best-matching asset as a URL path (e.g. `/stickers/gametilenet/004_001_complete/combined_11_15.png`). Weighted cosine similarity over detailed_name, group, supercategory, affordance (same as GameTileNet’s Narrative2Scene query script).
+- **Backend**: `main.py` mounts `2024-GameTileNet/DataAndAnnotations/Assets` at `/stickers/gametilenet` (only if that directory exists). Sticker resolution: try Klipy first; if no URL, call `get_best_sticker_gametilenet(spell.spell_name)`.
+- **Optional dependency**: install with `uv sync --extra gametilenet` to enable the GameTileNet fallback (pulls `sentence-transformers`). **Not installable on macOS Intel (x86_64) with Python 3.13**: PyTorch does not ship wheels for that platform; use an ARM Mac, Linux, Windows, or Python 3.11 to use the gametilenet extra.
+- **Tests**: `tests/test_sticker_gametilenet.py` — unit tests (mocked index/model) for empty prompt, missing index, successful match, empty index.
+- **Frontend**: `SpellResultMessage` in `frontend/src/types.ts` includes optional `sticker_url` for displaying the sticker when present.
+- **Nearest tile from a word**: `graphics_factory/sticker_gametilenet.py` exposes `query_nearest_tiles(word, top_k=1)` returning a list of dicts with `url_path`, `image_path`, `detailed_name`, `group`, `supercategory`, `affordance`, `score`. CLI: `uv run python scripts/get_nearest_tile.py <word>` (optional `-n/--top` and `-v/--verbose`).
+
 ### nyuuzyou/stickers dataset (Hugging Face)
 - **scripts/pull_stickers_dataset.py**: pulls [nyuuzyou/stickers](https://huggingface.co/datasets/nyuuzyou/stickers) via `huggingface_hub`
   - Default: `examples/` only (~1 MB). Optional `--val` adds `dataset_resized/val.zip` (128×128, ~741 MB)

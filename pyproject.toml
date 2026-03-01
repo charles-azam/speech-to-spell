@@ -15,9 +15,14 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "pytest>=8.0.0",
     "requests>=2.32.0",
+    "scipy>=1.14.0",
     "uvicorn[standard]>=0.41.0",
     "websockets>=16.0",
 ]
+
+# GameTileNet sticker fallback. Not installable on macOS Intel (x86_64) + Python 3.13: PyTorch has no wheels for that combo; use ARM Mac, Linux, or Python 3.11.
+[project.optional-dependencies]
+gametilenet = ["sentence-transformers>=3.0.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 # Project root on path so graphics_factory is importable when running via uvicorn
 _root = Path(__file__).resolve().parents[2]
@@ -23,6 +24,11 @@ try:
 except ImportError:
     get_best_sticker = None
 
+try:
+    from graphics_factory.sticker_gametilenet import get_best_sticker_gametilenet
+except ImportError:
+    get_best_sticker_gametilenet = None
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -37,6 +43,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve GameTileNet assets for sticker fallback (local pixel-art)
+_gametilenet_assets = _root / "2024-GameTileNet" / "DataAndAnnotations" / "Assets"
+if _gametilenet_assets.is_dir():
+    app.mount("/stickers/gametilenet", StaticFiles(directory=str(_gametilenet_assets)), name="stickers_gametilenet")
 
 
 @app.get("/health")
@@ -119,12 +130,19 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
             opponent = "right" if player == "left" else "left"
             sticker_url = None
-            if get_best_sticker and spell.spell_name:
-                sticker_url = await asyncio.to_thread(
-                    get_best_sticker,
-                    spell.spell_name,
-                    limit=1,
-                )
+            if spell.spell_name:
+                if get_best_sticker:
+                    sticker_url = await asyncio.to_thread(
+                        get_best_sticker,
+                        spell.spell_name,
+                        limit=1,
+                    )
+                if not sticker_url and get_best_sticker_gametilenet:
+                    sticker_url = await asyncio.to_thread(
+                        get_best_sticker_gametilenet,
+                        spell.spell_name,
+                        limit=1,
+                    )
             await websocket.send_text(json.dumps({
                 "type": "spell_result",
                 "caster": player,
