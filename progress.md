@@ -225,6 +225,20 @@
 - New flow: speak → transcription → emoji inference (broadcast) → judge verdict → consume & refill
 - Emoji inference runs in parallel with judge eval start, hiding latency
 
+### Wizard names everywhere
+- Backend: `broadcast_game_state()` includes `wizard_name` in each side's payload (both same-computer and remote modes)
+- Backend: `format_game_context()` now takes `caster_name` and `opponent_name` — judge sees actual wizard names instead of "Caster"/"Opponent"
+- Frontend: `useGameState.ts` stores `wizardName` per player from `game_state` messages
+- Frontend: `App.tsx` (same-computer) uses actual wizard names in panels and winner banner instead of "Wizard 1"/"Wizard 2"
+- `RemoteGameView.tsx` already used `wizardName` prop — now also gets names from game_state
+
+### Rules panel (how to play)
+- New `RulesPanel.tsx` modal component — explains goal, push-to-talk controls, emoji system, scoring, and judge mechanics
+- Auto-shows on game load (`useState(true)`), dismissed with "Got it!" button
+- Reopened via 📜 button in game header (both `App.tsx` and `RemoteGameView.tsx`)
+- Fully bilingual (FR/EN) via 13 new i18n keys
+- Matches existing ornate-card visual style with backdrop blur overlay
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **VAD (Silero)** — not needed for turn-based

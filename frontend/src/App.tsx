@@ -6,6 +6,7 @@ import { AmbientSparkles } from "./components/AmbientSparkles";
 import { PlayerControls } from "./components/PlayerControls";
 import { SpellHistory } from "./components/SpellHistory";
 import { LanguageToggle } from "./components/LanguageToggle";
+import { RulesPanel } from "./components/RulesPanel";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useGameState } from "./hooks/useGameState";
 import { useMicrophone } from "./hooks/useMicrophone";
@@ -24,6 +25,7 @@ function App({ roomCode }: AppProps) {
   const { devices } = useAudioDevices();
   const [leftDeviceId, setLeftDeviceId] = useState("");
   const [rightDeviceId, setRightDeviceId] = useState("");
+  const [showRules, setShowRules] = useState(true);
 
   // Push-to-talk: track which player is currently recording
   const activePlayerRef = useRef<PlayerSide | null>(null);
@@ -119,7 +121,7 @@ function App({ roomCode }: AppProps) {
 
   const renderColumn = (side: PlayerSide) => {
     const ps = state[side];
-    const name = side === "left" ? t("game.wizard1") : t("game.wizard2");
+    const name = state[side].wizardName || (side === "left" ? t("game.wizard1") : t("game.wizard2"));
     const keyBind = side === "left" ? "Q" : "P";
     const deviceId = side === "left" ? leftDeviceId : rightDeviceId;
     const onDeviceChange = side === "left" ? setLeftDeviceId : setRightDeviceId;
@@ -163,7 +165,15 @@ function App({ roomCode }: AppProps) {
 
       {/* Header */}
       <header className="text-center pt-6 pb-4 relative z-10">
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            onClick={() => setShowRules(true)}
+            className="ornate-btn text-xs px-2 py-1"
+            title={t("rules.tooltip")}
+            style={{ cursor: "pointer" }}
+          >
+            📜
+          </button>
           <LanguageToggle />
         </div>
         <h1
@@ -206,7 +216,7 @@ function App({ roomCode }: AppProps) {
               textShadow: "0 0 40px rgba(201, 168, 76, 0.5), 0 0 80px rgba(201, 168, 76, 0.25)",
             }}
           >
-            {state.winner === "left" ? t("game.wizard1") : t("game.wizard2")} {t("game.triumphs")}
+            {(state.winner === "left" ? state.left.wizardName : state.right.wizardName) || (state.winner === "left" ? t("game.wizard1") : t("game.wizard2"))} {t("game.triumphs")}
           </p>
         </div>
       )}
@@ -228,6 +238,8 @@ function App({ roomCode }: AppProps) {
           {renderColumn("right")}
         </div>
       </main>
+
+      {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
     </div>
   );
 }

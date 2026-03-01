@@ -6,6 +6,7 @@ import { AmbientSparkles } from "./AmbientSparkles";
 import { PlayerControls } from "./PlayerControls";
 import { SpellHistory } from "./SpellHistory";
 import { LanguageToggle } from "./LanguageToggle";
+import { RulesPanel } from "./RulesPanel";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useGameState } from "../hooks/useGameState";
 import { useMicrophone } from "../hooks/useMicrophone";
@@ -25,6 +26,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
   const { state, dispatch, handleServerMessage: baseHandler } = useGameState();
   const { devices } = useAudioDevices();
   const [deviceId, setDeviceId] = useState("");
+  const [showRules, setShowRules] = useState(true);
   const deviceIdRef = useRef(deviceId);
   deviceIdRef.current = deviceId;
   const stateRef = useRef(state);
@@ -116,7 +118,15 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
 
       {/* Header */}
       <header className="text-center pt-6 pb-4 relative z-10">
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            onClick={() => setShowRules(true)}
+            className="ornate-btn text-xs px-2 py-1"
+            title={t("rules.tooltip")}
+            style={{ cursor: "pointer" }}
+          >
+            📜
+          </button>
           <LanguageToggle />
         </div>
         <h1
@@ -236,6 +246,8 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
           </div>
         </div>
       </main>
+
+      {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
     </div>
   );
 }

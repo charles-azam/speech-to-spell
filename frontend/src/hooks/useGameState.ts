@@ -10,6 +10,7 @@ interface PerPlayerState {
   health: number;
   hand: string[];
   spellsCast: string[];
+  wizardName: string;
   spellName: string | null;
   hitColor: string | null;
   visualEffect: VisualEffect | null;
@@ -50,6 +51,7 @@ function defaultPlayerState(): PerPlayerState {
     health: 100,
     hand: [],
     spellsCast: [],
+    wizardName: "",
     spellName: null,
     hitColor: null,
     visualEffect: null,
@@ -167,12 +169,14 @@ function handleServerMessage(state: GameUIState, msg: ServerMessage): GameUIStat
           health: msg.left.health,
           hand: msg.left.emoji_hand,
           spellsCast: msg.left.spells_cast ?? state.left.spellsCast,
+          wizardName: msg.left.wizard_name ?? state.left.wizardName,
         },
         right: {
           ...state.right,
           health: msg.right.health,
           hand: msg.right.emoji_hand,
           spellsCast: msg.right.spells_cast ?? state.right.spellsCast,
+          wizardName: msg.right.wizard_name ?? state.right.wizardName,
         },
         winner: msg.winner,
       };

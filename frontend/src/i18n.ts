@@ -67,6 +67,23 @@ const translations = {
   "game.waitingOpponent": { fr: "En attente de l'adversaire...", en: "Waiting for opponent..." },
   "game.wizard1": { fr: "Sorcier 1", en: "Wizard 1" },
   "game.wizard2": { fr: "Sorcier 2", en: "Wizard 2" },
+
+  // Rules panel
+  "rules.title": { fr: "Comment jouer", en: "How to Play" },
+  "rules.goalTitle": { fr: "Objectif", en: "Goal" },
+  "rules.goalText": { fr: "Réduisez les PV de votre adversaire à 0.", en: "Reduce your opponent's HP to 0." },
+  "rules.castTitle": { fr: "Lancer un sort", en: "How to Cast" },
+  "rules.castSame": { fr: "Même ordi : maintenez [Q] (gauche) ou [P] (droite) pour parler", en: "Same computer: hold [Q] (left) or [P] (right) to speak" },
+  "rules.castRemote": { fr: "En ligne : maintenez [Espace] pour parler", en: "Online: hold [Space] to speak" },
+  "rules.castText": { fr: "Ou tapez votre incantation dans la zone de texte.", en: "Or type your incantation in the text box." },
+  "rules.emojiTitle": { fr: "Les Emojis", en: "The Emojis" },
+  "rules.emojiText": { fr: "Le juge choisit les emojis de votre main qui correspondent à votre sort. Des combos créatifs = plus de dégâts !", en: "The judge picks emojis from your hand that match your spell. Creative combos = more damage!" },
+  "rules.scoringTitle": { fr: "Dégâts", en: "Scoring" },
+  "rules.scoringText": { fr: "Sorts créatifs : 20-30 dmg. Classiques : 8-15. Faibles : 1-5. Vous pouvez aussi vous soigner avec des sorts protecteurs.", en: "Creative spells: 20-30 dmg. Classic: 8-15. Weak: 1-5. You can also heal yourself with protective spells." },
+  "rules.judgeTitle": { fr: "Le Juge", en: "The Judge" },
+  "rules.judgeText": { fr: "Un ancien sorcier évalue vos sorts. OUI (le sort touche), NON (sort rejeté, emojis perdus), ou EXPLIQUE (seconde chance).", en: "An ancient wizard evaluates your spells. YES (spell lands), NO (spell rejected, emojis lost), or EXPLAIN (second chance)." },
+  "rules.gotIt": { fr: "C'est parti !", en: "Got it!" },
+  "rules.tooltip": { fr: "Règles", en: "Rules" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

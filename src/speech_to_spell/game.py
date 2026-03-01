@@ -121,7 +121,12 @@ def apply_spell(
     return game
 
 
-def format_game_context(game: GameState, caster: str) -> str:
+def format_game_context(
+    game: GameState,
+    caster: str,
+    caster_name: str = "Caster",
+    opponent_name: str = "Opponent",
+) -> str:
     """Format game state as text for the LLM."""
     target = "right" if caster == "left" else "left"
     caster_state = game.left if caster == "left" else game.right
@@ -129,16 +134,16 @@ def format_game_context(game: GameState, caster: str) -> str:
 
     lines = [
         f"Turn {game.turn_number + 1}",
-        f"Caster — HP: {caster_state.health}/{MAX_HEALTH}",
-        f"Opponent — HP: {target_state.health}/{MAX_HEALTH}",
+        f"{caster_name} (caster) — HP: {caster_state.health}/{MAX_HEALTH}",
+        f"{opponent_name} (opponent) — HP: {target_state.health}/{MAX_HEALTH}",
     ]
 
     if caster_state.spells_cast:
         recent = caster_state.spells_cast[-5:]
-        lines.append(f"Caster's recent spells: {', '.join(recent)}")
+        lines.append(f"{caster_name}'s recent spells: {', '.join(recent)}")
 
     if target_state.spells_cast:
         recent = target_state.spells_cast[-5:]
-        lines.append(f"Opponent's recent spells: {', '.join(recent)}")
+        lines.append(f"{opponent_name}'s recent spells: {', '.join(recent)}")
 
     return "\n".join(lines)

@@ -187,11 +187,13 @@ async def broadcast_game_state(room: Room) -> None:
                     "health": game.left.health,
                     "emoji_hand": game.left.emoji_hand,
                     "spells_cast": game.left.spells_cast,
+                    "wizard_name": room.players["left"].wizard_name if "left" in room.players else "",
                 },
                 "right": {
                     "health": game.right.health,
                     "emoji_hand": game.right.emoji_hand,
                     "spells_cast": game.right.spells_cast,
+                    "wizard_name": room.players["right"].wizard_name if "right" in room.players else "",
                 },
                 "turn_number": game.turn_number,
                 "winner": game.winner,
@@ -201,17 +203,20 @@ async def broadcast_game_state(room: Room) -> None:
             opponent = "right" if side == "left" else "left"
             own_state = game.left if side == "left" else game.right
             opp_state = game.left if opponent == "left" else game.right
+            own_side_key = "left" if side == "left" else "right"
             msg = {
                 "type": "game_state",
-                "left" if side == "left" else "right": {
+                own_side_key: {
                     "health": own_state.health,
                     "emoji_hand": own_state.emoji_hand,
                     "spells_cast": own_state.spells_cast,
+                    "wizard_name": room.players[side].wizard_name if side in room.players else "",
                 },
                 opponent: {
                     "health": opp_state.health,
                     "emoji_hand": [],  # Hidden
                     "spells_cast": opp_state.spells_cast,
+                    "wizard_name": room.players[opponent].wizard_name if opponent in room.players else "",
                 },
                 "turn_number": game.turn_number,
                 "winner": game.winner,
@@ -410,7 +415,16 @@ async def process_spell(
 
     room.last_spell_at = time.time()
 
-    context = format_game_context(game=game, caster=player)
+    opponent_side = "right" if player == "left" else "left"
+    caster_name = room.players[player].wizard_name
+    opponent_name = room.players[opponent_side].wizard_name
+
+    context = format_game_context(
+        game=game,
+        caster=player,
+        caster_name=caster_name,
+        opponent_name=opponent_name,
+    )
 
     verdict = await asyncio.to_thread(
         interpret_spell,

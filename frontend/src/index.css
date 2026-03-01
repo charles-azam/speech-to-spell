@@ -372,3 +372,15 @@ input, textarea {
   0%, 100% { filter: drop-shadow(0 0 4px var(--gold-dim)); }
   50% { filter: drop-shadow(0 0 12px var(--gold)); }
 }
+
+/* Rules panel kbd keys */
+.rules-kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid var(--gold-dim);
+  border-radius: 3px;
+}
