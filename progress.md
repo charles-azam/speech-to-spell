@@ -239,6 +239,23 @@
 - Fully bilingual (FR/EN) via 13 new i18n keys
 - Matches existing ornate-card visual style with backdrop blur overlay
 
+### Architecture presentation page
+- `ArchitecturePage.tsx`: full-page technical slide accessible from the lobby
+  - Horizontal flow diagram: Player Voice → Voxtral Mini → Ministral 8B → ElevenLabs → Game Effects
+  - Mistral nodes get gold glow + badge, ElevenLabs gets purple
+  - "Latency is King" callout section with 8 design decisions explained
+  - 3-column model detail cards (Voxtral Mini, Ministral 8B, ElevenLabs) with bullet points
+  - Tech stack footer pills
+  - Animated fade-in-up with staggered delays
+  - Same dark arcane theme as the rest of the game
+- `GameRouter.tsx`: `architecture` phase added to router state machine
+- `Lobby.tsx`: subtle "Architecture" link-button at the bottom of the lobby page
+- Ready for the jury to scan in ~30 seconds
+
+### README.md
+- Polished hackathon submission README
+- Pitch, flow diagram, Mistral models table, latency-first philosophy, ElevenLabs integration, tech stack, quick start
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **VAD (Silero)** — not needed for turn-based

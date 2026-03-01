@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Lobby } from "./components/Lobby";
 import { WaitingRoom } from "./components/WaitingRoom";
 import { RemoteGameView } from "./components/RemoteGameView";
+import { ArchitecturePage } from "./components/ArchitecturePage";
 import { AmbientSparkles } from "./components/AmbientSparkles";
 import App from "./App";
 import { API_BASE } from "./config";
@@ -11,6 +12,7 @@ type GameMode = "same_computer" | "multi_computer";
 
 type RouterState =
   | { phase: "lobby" }
+  | { phase: "architecture" }
   | { phase: "waiting"; roomCode: string; wizardName: string }
   | { phase: "game"; roomCode: string; side: string; mode: GameMode; wizardName: string };
 
@@ -60,6 +62,10 @@ export function GameRouter() {
     }
   }, []);
 
+  const handleShowArchitecture = useCallback(() => {
+    setState({ phase: "architecture" });
+  }, []);
+
   const handleCancel = useCallback(() => {
     setState({ phase: "lobby" });
   }, []);
@@ -68,7 +74,16 @@ export function GameRouter() {
     return (
       <>
         <AmbientSparkles />
-        <Lobby onRoomCreated={handleRoomCreated} />
+        <Lobby onRoomCreated={handleRoomCreated} onShowArchitecture={handleShowArchitecture} />
+      </>
+    );
+  }
+
+  if (state.phase === "architecture") {
+    return (
+      <>
+        <AmbientSparkles />
+        <ArchitecturePage onBack={handleCancel} />
       </>
     );
   }

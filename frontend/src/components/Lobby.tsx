@@ -7,9 +7,10 @@ type GameMode = "same_computer" | "multi_computer";
 
 interface LobbyProps {
   onRoomCreated: (roomCode: string, side: string, mode: GameMode, wizardName: string) => void;
+  onShowArchitecture: () => void;
 }
 
-export function Lobby({ onRoomCreated }: LobbyProps) {
+export function Lobby({ onRoomCreated, onShowArchitecture }: LobbyProps) {
   const { lang, t } = useLanguage();
   const [wizardName, setWizardName] = useState("");
   const [wizardNameRight, setWizardNameRight] = useState("");
@@ -265,6 +266,21 @@ export function Lobby({ onRoomCreated }: LobbyProps) {
           </p>
         )}
       </div>
+
+      {/* Architecture link */}
+      <button
+        onClick={onShowArchitecture}
+        className="mt-6 text-xs tracking-wider transition-opacity hover:opacity-80"
+        style={{
+          color: "var(--text-secondary)",
+          fontFamily: "'Cinzel', serif",
+          opacity: 0.5,
+          background: "none",
+          border: "none",
+        }}
+      >
+        Architecture
+      </button>
     </div>
   );
 }
