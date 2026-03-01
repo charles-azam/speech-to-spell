@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time server setup for Hetzner VPS (Ubuntu 24.04)
+# One-time server setup for EC2 VPS (Ubuntu 24.04)
 set -euo pipefail
 
 echo "=== Installing Docker ==="

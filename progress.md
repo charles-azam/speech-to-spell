@@ -128,7 +128,7 @@
 ### Deployment-ready
 - Backend: configurable CORS via `ALLOWED_ORIGINS` env var
 - Frontend: `VITE_API_URL` env var for pointing at production backend
-- Ready for: Cloudflare Pages (frontend) + Hetzner VPS with systemd + nginx (backend)
+- Ready for: Cloudflare Pages (frontend) + EC2 VPS with systemd + nginx (backend)
 
 ### Bug fixes & polish pass (post-room-system)
 
@@ -166,7 +166,7 @@
 - `deploy/setup.sh`: one-time VPS setup script (installs Docker, clones repo)
 - `.dockerignore`: excludes .venv, frontend, .git, node_modules, .env
 - `main.py`: added `load_dotenv()` so .env is loaded in production
-- **Architecture**: Cloudflare Pages (frontend) + Hetzner VPS (backend via Docker) + Cloudflare DNS proxy (SSL termination)
+- **Architecture**: Cloudflare Pages (frontend) + EC2 VPS (backend via Docker) + Cloudflare DNS proxy (SSL termination)
 - **Backend redeploy**: `git pull && docker compose up -d --build`
 
 ### ElevenLabs Judge Voice (TTS)
