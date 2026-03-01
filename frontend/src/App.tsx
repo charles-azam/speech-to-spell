@@ -56,8 +56,7 @@ function App({ roomCode }: AppProps) {
       if (s.explainPlayer === player) {
         sendRef.current({ type: "explain_spell", player, audio: audioBase64 });
       } else {
-        const emojis = s[player].selectedEmojis;
-        sendRef.current({ type: "cast_spell", player, selected_emojis: emojis, audio: audioBase64 });
+        sendRef.current({ type: "cast_spell", player, audio: audioBase64 });
       }
     },
     [dispatch],
@@ -73,18 +72,10 @@ function App({ roomCode }: AppProps) {
       if (s.explainPlayer === player) {
         send({ type: "explain_spell", player, text });
       } else {
-        const emojis = s[player].selectedEmojis;
-        send({ type: "text_spell", player, selected_emojis: emojis, text });
+        send({ type: "text_spell", player, text });
       }
     },
     [send, dispatch],
-  );
-
-  const handleEmojiToggle = useCallback(
-    (player: PlayerSide, emoji: string) => {
-      dispatch({ type: "toggle_emoji", player, emoji });
-    },
-    [dispatch],
   );
 
   // Push-to-talk: Q for left, P for right
@@ -152,8 +143,7 @@ function App({ roomCode }: AppProps) {
           <PlayerControls
             side={side}
             hand={ps.hand}
-            selectedEmojis={ps.selectedEmojis}
-            onToggle={(emoji) => handleEmojiToggle(side, emoji)}
+            inferredEmojis={ps.inferredEmojis}
             isExplaining={state.explainPlayer === side}
             keyBind={keyBind}
             disabled={false}

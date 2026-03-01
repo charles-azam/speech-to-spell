@@ -15,7 +15,7 @@ interface PerPlayerState {
   visualEffect: VisualEffect | null;
   transcription: string | null;
   processing: boolean;
-  selectedEmojis: string[];
+  inferredEmojis: string[];
 }
 
 interface JudgeState {
@@ -40,8 +40,6 @@ interface GameUIState {
 type GameAction =
   | { type: "server_message"; msg: ServerMessage }
   | { type: "set_processing"; player: PlayerSide; value: boolean }
-  | { type: "toggle_emoji"; player: PlayerSide; emoji: string }
-  | { type: "clear_selected"; player: PlayerSide }
   | { type: "clear_screen_shake" }
   | { type: "clear_visual_effect"; side: PlayerSide }
   | { type: "clear_spell_state"; caster: PlayerSide }
@@ -57,7 +55,7 @@ function defaultPlayerState(): PerPlayerState {
     visualEffect: null,
     transcription: null,
     processing: false,
-    selectedEmojis: [],
+    inferredEmojis: [],
   };
 }
 
@@ -82,18 +80,6 @@ function gameReducer(state: GameUIState, action: GameAction): GameUIState {
       const player = action.player;
       return { ...state, [player]: { ...state[player], processing: action.value } };
     }
-    case "toggle_emoji": {
-      const p = action.player;
-      const prev = state[p].selectedEmojis;
-      const next = prev.includes(action.emoji)
-        ? prev.filter((e) => e !== action.emoji)
-        : [...prev, action.emoji];
-      return { ...state, [p]: { ...state[p], selectedEmojis: next } };
-    }
-    case "clear_selected": {
-      const p = action.player;
-      return { ...state, [p]: { ...state[p], selectedEmojis: [] } };
-    }
     case "clear_screen_shake":
       return { ...state, screenShake: false };
     case "clear_visual_effect": {
@@ -104,7 +90,7 @@ function gameReducer(state: GameUIState, action: GameAction): GameUIState {
       const c = action.caster;
       return {
         ...state,
-        [c]: { ...state[c], selectedEmojis: [], transcription: null, spellName: null },
+        [c]: { ...state[c], inferredEmojis: [], transcription: null, spellName: null },
       };
     }
     case "connection_lost":
@@ -189,6 +175,13 @@ function handleServerMessage(state: GameUIState, msg: ServerMessage): GameUIStat
           spellsCast: msg.right.spells_cast ?? state.right.spellsCast,
         },
         winner: msg.winner,
+      };
+    }
+    case "emoji_inference": {
+      const p = msg.player;
+      return {
+        ...state,
+        [p]: { ...state[p], inferredEmojis: msg.inferred_emojis },
       };
     }
     case "player_joined": {

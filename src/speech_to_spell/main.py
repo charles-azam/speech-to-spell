@@ -38,7 +38,7 @@ from speech_to_spell.room import (
 )
 from speech_to_spell.commentator import generate_commentary, generate_idle_commentary
 from speech_to_spell.sound import load_sound
-from speech_to_spell.spell import JudgeVerdict, interpret_spell
+from speech_to_spell.spell import JudgeVerdict, infer_emojis, interpret_spell
 from speech_to_spell.tts import text_to_speech
 from speech_to_spell.voice import transcribe
 
@@ -46,7 +46,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ENABLE_SOUND_EFFECTS = True
-MIN_EMOJIS = 2
 
 COMMENTATOR_MALE_VOICE_ID = os.environ.get("COMMENTATOR_MALE_VOICE_ID", "TX3LPaxmHKxFdv7VOQHJ")
 COMMENTATOR_FEMALE_VOICE_ID = os.environ.get("COMMENTATOR_FEMALE_VOICE_ID", "XB0fDUnXU5powFXDhCwa")
@@ -386,20 +385,16 @@ def start_idle_commentary(room: Room) -> None:
 # --- Game logic ---
 
 
-def validate_emojis(selected_emojis: list[str], player_hand: list[str], lang: str = "fr") -> str | None:
-    """Validate that selected emojis are in the player's hand. Returns error message or None."""
-    if len(selected_emojis) < MIN_EMOJIS:
-        if lang == "en":
-            return f"You must pick at least {MIN_EMOJIS} emojis."
-        return f"Tu dois choisir au moins {MIN_EMOJIS} emojis."
-
-    for emoji in selected_emojis:
-        if emoji not in player_hand:
-            if lang == "en":
-                return f"Emoji {emoji} is not in your hand!"
-            return f"L'emoji {emoji} n'est pas dans ta main !"
-
-    return None
+async def broadcast_emoji_inference(room_code: str, player: str, inferred_emojis: list[str]) -> None:
+    """Send inferred emojis to all clients in the room."""
+    await broadcast_to_room(
+        room_code=room_code,
+        message={
+            "type": "emoji_inference",
+            "player": player,
+            "inferred_emojis": inferred_emojis,
+        },
+    )
 
 
 async def process_spell(
@@ -565,24 +560,11 @@ async def websocket_endpoint(
 
             if msg_type == "cast_spell":
                 player = message["player"]
-                selected_emojis = message["selected_emojis"]
 
                 if room.game is None or room.game.winner:
                     continue
 
-                # Validate emojis
                 player_state = room.game.left if player == "left" else room.game.right
-                error = validate_emojis(
-                    selected_emojis=selected_emojis,
-                    player_hand=player_state.emoji_hand,
-                    lang=room.lang,
-                )
-                if error:
-                    await broadcast_to_room(
-                        room_code=room_code,
-                        message={"type": "spell_fizzle", "player": player, "reason": error},
-                    )
-                    continue
 
                 # Get transcription from audio or text
                 if "audio" in message:
@@ -625,7 +607,20 @@ async def websocket_endpoint(
                 else:
                     continue
 
-                logger.info(f"Spell from {player}: emojis={selected_emojis}, text={text!r}")
+                # Infer emojis from hand based on transcription
+                selected_emojis = await asyncio.to_thread(
+                    infer_emojis,
+                    hand=player_state.emoji_hand,
+                    transcription=text,
+                    lang=room.lang,
+                )
+                await broadcast_emoji_inference(
+                    room_code=room_code,
+                    player=player,
+                    inferred_emojis=selected_emojis,
+                )
+
+                logger.info(f"Spell from {player}: inferred_emojis={selected_emojis}, text={text!r}")
 
                 await process_spell(
                     room=room,
@@ -669,26 +664,14 @@ async def websocket_endpoint(
                 )
 
             elif msg_type == "text_spell":
-                # Text spell bypass for testing — same as cast_spell but with text
+                # Text spell — infer emojis from text
                 player = message["player"]
                 text = message.get("text", "").strip()
-                selected_emojis = message.get("selected_emojis", [])
 
                 if not text or room.game is None or room.game.winner:
                     continue
 
                 player_state = room.game.left if player == "left" else room.game.right
-                error = validate_emojis(
-                    selected_emojis=selected_emojis,
-                    player_hand=player_state.emoji_hand,
-                    lang=room.lang,
-                )
-                if error:
-                    await broadcast_to_room(
-                        room_code=room_code,
-                        message={"type": "spell_fizzle", "player": player, "reason": error},
-                    )
-                    continue
 
                 await broadcast_to_room(
                     room_code=room_code,
@@ -697,6 +680,19 @@ async def websocket_endpoint(
                         "player": player,
                         "text": text,
                     },
+                )
+
+                # Infer emojis from hand based on text
+                selected_emojis = await asyncio.to_thread(
+                    infer_emojis,
+                    hand=player_state.emoji_hand,
+                    transcription=text,
+                    lang=room.lang,
+                )
+                await broadcast_emoji_inference(
+                    room_code=room_code,
+                    player=player,
+                    inferred_emojis=selected_emojis,
                 )
 
                 await process_spell(

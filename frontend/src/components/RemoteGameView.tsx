@@ -56,7 +56,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
       if (s.explainPlayer === side) {
         sendRef.current({ type: "explain_spell", player: side, audio: audioBase64 });
       } else {
-        sendRef.current({ type: "cast_spell", player: side, selected_emojis: s[side].selectedEmojis, audio: audioBase64 });
+        sendRef.current({ type: "cast_spell", player: side, audio: audioBase64 });
       }
     },
     [side, dispatch],
@@ -72,7 +72,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
       if (s.explainPlayer === player) {
         send({ type: "explain_spell", player, text });
       } else {
-        send({ type: "text_spell", player, selected_emojis: s[player].selectedEmojis, text });
+        send({ type: "text_spell", player, text });
       }
     },
     [send, dispatch],
@@ -194,8 +194,7 @@ export function RemoteGameView({ roomCode, side, wizardName }: RemoteGameViewPro
               <PlayerControls
                 side={side}
                 hand={my.hand}
-                selectedEmojis={my.selectedEmojis}
-                onToggle={(emoji) => dispatch({ type: "toggle_emoji", player: side, emoji })}
+                inferredEmojis={my.inferredEmojis}
                 isExplaining={state.explainPlayer === side}
                 keyBind="Space"
                 disabled={false}

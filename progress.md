@@ -209,6 +209,22 @@
 - `main.py`: `CreateRoomRequest` gains `wizard_name_right: str | None`
 - `Lobby.tsx`: second "Wizard Name (Right)" input shown when mode is same-computer, validated non-empty
 
+### Voice-only spell casting (LLM emoji inference)
+- Players no longer click emojis — they just speak (or type) their spell
+- New `infer_emojis()` in `spell.py`: Ministral tool-calling infers which emojis from the hand match the incantation
+  - `select_emojis` tool with `emojis: string[]` parameter
+  - Validates LLM output against actual hand; fallback to first 2 if <2 valid
+  - Supports all 3 providers (mistral/aws/huggingface)
+- Backend `main.py`: `cast_spell` and `text_spell` handlers no longer read `selected_emojis` from client message
+  - After transcription, calls `infer_emojis()` server-side
+  - Broadcasts new `emoji_inference` message with inferred emojis
+  - `validate_emojis()` and `MIN_EMOJIS` removed
+- Frontend: `EmojiHand` is now display-only (no click handlers)
+  - Inferred emojis get golden glow, scale up, float; non-inferred emojis dim
+  - Inferred preview pulses at bottom
+- New flow: speak → transcription → emoji inference (broadcast) → judge verdict → consume & refill
+- Emoji inference runs in parallel with judge eval start, hiding latency
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
 - **VAD (Silero)** — not needed for turn-based

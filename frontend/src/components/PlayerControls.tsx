@@ -8,8 +8,7 @@ import { useLanguage } from "../hooks/useLanguage";
 interface PlayerControlsProps {
   side: PlayerSide;
   hand: string[];
-  selectedEmojis: string[];
-  onToggle: (emoji: string) => void;
+  inferredEmojis: string[];
   isExplaining: boolean;
   keyBind: string;
   disabled: boolean;
@@ -22,8 +21,7 @@ interface PlayerControlsProps {
 export function PlayerControls({
   side,
   hand,
-  selectedEmojis,
-  onToggle,
+  inferredEmojis,
   isExplaining,
   keyBind,
   disabled,
@@ -48,9 +46,7 @@ export function PlayerControls({
 
       <EmojiHand
         emojis={hand}
-        selectedEmojis={selectedEmojis}
-        onToggle={onToggle}
-        disabled={false}
+        inferredEmojis={inferredEmojis}
       />
 
       {isExplaining && (
@@ -65,7 +61,7 @@ export function PlayerControls({
       <TextSpellInput
         side={side}
         onCast={onTextCast}
-        disabled={selectedEmojis.length < 2 && !isExplaining}
+        disabled={false}
       />
     </div>
   );

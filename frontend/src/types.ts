@@ -83,6 +83,12 @@ export interface PlayerDisconnectedMessage {
   side: PlayerSide;
 }
 
+export interface EmojiInferenceMessage {
+  type: "emoji_inference";
+  player: PlayerSide;
+  inferred_emojis: string[];
+}
+
 export type ServerMessage =
   | TranscriptionMessage
   | JudgeVerdictMessage
@@ -92,12 +98,12 @@ export type ServerMessage =
   | CommentatorVoiceMessage
   | SpellFizzleMessage
   | PlayerJoinedMessage
-  | PlayerDisconnectedMessage;
+  | PlayerDisconnectedMessage
+  | EmojiInferenceMessage;
 
 export interface CastSpellMessage {
   type: "cast_spell";
   player: PlayerSide;
-  selected_emojis: string[];
   audio?: string; // base64
   text?: string;
 }
@@ -112,7 +118,6 @@ export interface ExplainSpellMessage {
 export interface TextSpellMessage {
   type: "text_spell";
   player: PlayerSide;
-  selected_emojis: string[];
   text: string;
 }
 

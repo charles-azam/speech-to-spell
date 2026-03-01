@@ -226,6 +226,37 @@ JUDGE_SPELL_TOOL_EN = {
 TOOLS_FR = [JUDGE_SPELL_TOOL]
 TOOLS_EN = [JUDGE_SPELL_TOOL_EN]
 
+# --- Emoji inference tool definition ---
+
+SELECT_EMOJIS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "select_emojis",
+        "description": "Select emojis from the wizard's hand that match the spoken incantation.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "emojis": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 2,
+                    "maxItems": 3,
+                    "description": "2-3 emojis from the hand that best match the incantation.",
+                },
+            },
+            "required": ["emojis"],
+        },
+    },
+}
+
+INFER_EMOJIS_SYSTEM_PROMPT = """You are a spell interpreter for a wizard duel game. A wizard speaks an incantation and you must pick which emojis from their hand best match what they said.
+
+Rules:
+- Pick the exact emojis you think the user selected. Only pick 3 if the match is truly perfect for all 3.
+- Only pick emojis that DIRECTLY relate to the incantation's theme
+- If nothing matches well, pick the 2 closest connections
+- Only pick emojis that are actually in the hand"""
+
 _sound_descriptions = get_sound_descriptions()
 
 SYSTEM_PROMPT = f"""Tu es LE JUGE SUPRÊME d'un duel de sorciers. Un vieux sorcier blasé, sarcastique, qui a tout vu. Tu parles en argot français, tu tutoies les joueurs, tu les traites comme des apprentis qui te font perdre ton temps. Tu es HILARANT.
@@ -541,3 +572,71 @@ def interpret_spell(
         return _interpret_openai(client=_get_aws_client(), model=AWS_MODEL, user_content=user_content, lang=lang)
     else:
         return _interpret_openai(client=_get_hf_client(), model=HF_MODEL, user_content=user_content, lang=lang)
+
+
+def _parse_inferred_emojis(tool_calls: list, hand: list[str]) -> list[str]:
+    """Parse select_emojis tool call and validate against hand."""
+    for tool_call in tool_calls:
+        name = getattr(tool_call.function, "name", None) or tool_call.function.name
+        raw = tool_call.function.arguments
+        args = json.loads(raw) if isinstance(raw, str) else raw
+        if name == "select_emojis":
+            raw_emojis = args.get("emojis", [])
+            # Filter to only emojis actually in the hand, cap at 3
+            valid = [e for e in raw_emojis if e in hand][:3]
+            return valid
+    return []
+
+
+def infer_emojis(hand: list[str], transcription: str, lang: str = "fr") -> list[str]:  # noqa: ARG001
+    """Infer which emojis from the player's hand match their spoken spell."""
+    hand_str = " ".join(hand)
+    user_content = f"Hand: {hand_str}\nIncantation: \"{transcription}\""
+
+    logger.info(f"Inferring emojis for: {transcription!r} from hand={hand_str}")
+
+    tools = [SELECT_EMOJIS_TOOL]
+
+    if SPELL_PROVIDER == "mistral":
+        response = _get_mistral_client().chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[
+                {"role": "system", "content": INFER_EMOJIS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            tools=tools,
+            tool_choice="any",
+        )
+        tool_calls = response.choices[0].message.tool_calls or []
+    elif SPELL_PROVIDER == "aws":
+        response = _get_aws_client().chat.completions.create(
+            model=AWS_MODEL,
+            messages=[
+                {"role": "system", "content": INFER_EMOJIS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            tools=tools,
+            tool_choice="auto",
+        )
+        tool_calls = response.choices[0].message.tool_calls or []
+    else:
+        response = _get_hf_client().chat.completions.create(
+            model=HF_MODEL,
+            messages=[
+                {"role": "system", "content": INFER_EMOJIS_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            tools=tools,
+            tool_choice="auto",
+        )
+        tool_calls = response.choices[0].message.tool_calls or []
+
+    valid = _parse_inferred_emojis(tool_calls=tool_calls, hand=hand)
+
+    # Fallback: if <2 valid emojis, take first 2 from hand
+    if len(valid) < 2:
+        logger.warning(f"Emoji inference returned {len(valid)} valid emojis, falling back to first 2 from hand")
+        valid = hand[:2]
+
+    logger.info(f"Inferred emojis: {valid}")
+    return valid
