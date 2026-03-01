@@ -230,16 +230,39 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
           delay={0.4}
         />
         <FlowArrow delay={0.5} />
-        <FlowNode
-          icon="⚖️"
-          label="Ministral 8B"
-          sublabel="Judge + Emoji + Commentary"
-          badge="Mistral"
-          badgeColor="var(--gold)"
-          glowColor="rgba(201, 168, 76, 0.15)"
-          delay={0.6}
-        />
-        <FlowArrow delay={0.7} />
+        {/* Two agents stacked — Judge + Commentator in parallel */}
+        <div
+          className="animate-fade-in-up flex flex-col items-center gap-2"
+          style={{ animationDelay: "0.6s" }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <FlowNode
+              icon="⚖️"
+              label="Judge Agent"
+              sublabel="Verdict + Damage + Emoji inference"
+              badge="Mistral"
+              badgeColor="var(--gold)"
+              glowColor="rgba(201, 168, 76, 0.15)"
+              delay={0.6}
+            />
+            <FlowNode
+              icon="🎭"
+              label="Commentator Agent"
+              sublabel="Marc & Sophie · Last 5 events"
+              badge="Mistral"
+              badgeColor="var(--gold)"
+              glowColor="rgba(201, 168, 76, 0.15)"
+              delay={0.7}
+            />
+          </div>
+          <span
+            className="text-[10px] tracking-widest uppercase"
+            style={{ color: "var(--text-dim)", fontFamily: "'Cinzel', serif" }}
+          >
+            2 agents · Ministral 8B
+          </span>
+        </div>
+        <FlowArrow delay={0.8} />
         <FlowNode
           icon="🔊"
           label="ElevenLabs"
@@ -247,14 +270,14 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
           badge="ElevenLabs"
           badgeColor="#7c3aed"
           glowColor="rgba(124, 58, 237, 0.15)"
-          delay={0.8}
+          delay={0.9}
         />
-        <FlowArrow delay={0.9} />
+        <FlowArrow delay={1.0} />
         <FlowNode
           icon="✨"
           label="Game Effects"
           sublabel="Visual + Sound + Verdict"
-          delay={1.0}
+          delay={1.1}
         />
       </div>
 
@@ -262,7 +285,7 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
       <div
         className="animate-fade-in-up w-full max-w-3xl rounded-xl p-6 sm:p-8 mb-14 ornate-card"
         style={{
-          animationDelay: "1.1s",
+          animationDelay: "1.2s",
           boxShadow:
             "0 0 30px rgba(201, 168, 76, 0.12), 0 0 60px rgba(201, 168, 76, 0.06), inset 0 0 30px rgba(201, 168, 76, 0.03)",
           borderColor: "var(--gold-dim)",
@@ -309,7 +332,7 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
       </div>
 
       {/* Model Detail Cards */}
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-5 mb-14">
+      <div className="w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-14">
         <ModelCard
           icon="🗣️"
           title="Voxtral Mini"
@@ -323,22 +346,37 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
             "~500ms per transcription",
             "Retry logic (3 attempts)",
           ]}
-          delay={1.3}
+          delay={1.4}
         />
         <ModelCard
-          icon="🧠"
-          title="Ministral 8B"
+          icon="⚖️"
+          title="Judge Agent"
           modelId="ministral-8b-latest"
-          badgeLabel="Brain"
+          badgeLabel="Agent"
           badgeColor="var(--gold)"
           glowColor="rgba(201, 168, 76, 0.1)"
           bullets={[
-            "<b>Judge AI</b>: single tool call, evaluates spell (verdict + damage + effects)",
-            "<b>Emoji Inference</b>: single tool call, picks emojis from hand",
-            "<b>Commentator AI</b>: minimalist agent, managed context (last 5 events only)",
-            "All 3 tasks: 1 round-trip each, no multi-turn",
+            "Single tool call → verdict + damage + visual effects",
+            "Emoji inference: 1 tool call, picks emojis from hand",
+            "No multi-turn, no agentic loops",
+            "Blocks the game loop (verdict is needed)",
           ]}
-          delay={1.4}
+          delay={1.5}
+        />
+        <ModelCard
+          icon="🎭"
+          title="Commentator Agent"
+          modelId="ministral-8b-latest"
+          badgeLabel="Agent"
+          badgeColor="var(--gold)"
+          glowColor="rgba(201, 168, 76, 0.1)"
+          bullets={[
+            "Minimalist homemade agent pattern",
+            "System prompt + 1 user message (last 5 events only)",
+            "No conversation history — context manually managed",
+            "Fire-and-forget: never blocks the game loop",
+          ]}
+          delay={1.6}
         />
         <ModelCard
           icon="🎤"
@@ -353,14 +391,14 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
             "In-memory TTS cache (500 entries)",
             "Multilingual (29 languages)",
           ]}
-          delay={1.5}
+          delay={1.7}
         />
       </div>
 
       {/* Tech Stack Footer */}
       <div
         className="animate-fade-in-up flex flex-wrap items-center justify-center gap-2 mb-12"
-        style={{ animationDelay: "1.6s" }}
+        style={{ animationDelay: "1.8s" }}
       >
         {[
           "React 19",
@@ -380,7 +418,7 @@ export function ArchitecturePage({ onBack }: ArchitecturePageProps) {
       <button
         onClick={onBack}
         className="animate-fade-in-up btn-arcane rounded-lg"
-        style={{ animationDelay: "1.7s" }}
+        style={{ animationDelay: "1.9s" }}
       >
         Back to Lobby
       </button>

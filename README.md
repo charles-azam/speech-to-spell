@@ -7,31 +7,37 @@ Two wizards face off in a magical arena. Speak your spells out loud — an AI ju
 ## How it works
 
 ```
-🎙️ Speak spell  →  🗣️ Voxtral Mini (STT)  →  ⚖️ Ministral 8B (Judge + Emoji + Commentary)  →  🔊 ElevenLabs (TTS)  →  ✨ Effects
+                                          ┌─────────────────────────┐
+                                          │ ⚖️  Judge Agent          │
+🎙️ Speak  →  🗣️ Voxtral Mini (STT)  →  │   Verdict + Emoji       │  →  🔊 ElevenLabs (TTS)  →  ✨ Effects
+                                          │ 🎭 Commentator Agent    │
+                                          │   Marc & Sophie          │
+                                          └─────────────────────────┘
+                                               Ministral 8B × 2
 ```
 
 1. **Speak** your spell into the mic (push-to-talk or text input)
 2. **Voxtral Mini** transcribes your voice in ~500ms
-3. **Ministral 8B** runs 3 independent tasks: judges the spell, infers emojis from your hand, generates commentary
-4. **ElevenLabs** voices the judge's verdict and commentator duo
-5. **Game effects** — visual animations, sound effects, damage/healing applied
+3. **Judge Agent** (Ministral 8B) — evaluates the spell in a single tool call: verdict, damage, emoji inference, visual effects. Blocks the game loop (verdict is needed).
+4. **Commentator Agent** (Ministral 8B) — fire-and-forget, runs async after the judge. Minimalist homemade agent: system prompt + 1 message with the last 5 events, no conversation history.
+5. **ElevenLabs** voices the judge's verdict and the commentator duo (Marc & Sophie)
+6. **Game effects** — visual animations, sound effects, damage/healing applied
 
 ## Mistral Models Used
 
 | Model | ID | Role |
 |---|---|---|
 | **Voxtral Mini** | `voxtral-mini-latest` | Speech-to-text — every spell passes through Voxtral. ~500ms per transcription. |
-| **Ministral 8B** | `ministral-8b-latest` | **Judge AI** — single tool call evaluates spell (verdict + damage + effects). |
-| | | **Emoji Inference** — single tool call picks emojis from the player's hand matching the incantation. |
-| | | **Commentator AI** — minimalist agent with managed context (last 5 events only). Marc hypes, Sophie roasts. |
+| **Ministral 8B** | `ministral-8b-latest` | **Judge Agent** — single tool call evaluates spell (verdict + damage + effects + emoji inference). Blocks the game loop. |
+| | | **Commentator Agent** — minimalist homemade agent, sends only system prompt + 1 user message with last 5 events. No conversation history. Fire-and-forget (async). |
 
 ## Latency-first design
 
 Every design decision optimizes for real-time gameplay:
 
 - **Voxtral Mini + Ministral 8B** chosen for fastest multilingual inference — not the biggest models, the fastest
-- **Single tool calls everywhere** — Judge = 1 call. Emoji inference = 1 call. No agentic loops, no multi-turn. Minimizes round trips.
-- **Minimalist commentator agent** — each call sends only system prompt + 1 user message with the last 5 events. No conversation history accumulates — context is manually managed to stay tiny.
+- **Two separate agents, both Ministral 8B** — Judge Agent (blocking, single tool call) and Commentator Agent (async, fire-and-forget). No agentic loops, no multi-turn.
+- **Minimalist commentator agent** — homemade agent pattern: each call sends only system prompt + 1 user message with the last 5 events. No conversation history accumulates — context is manually managed to stay tiny.
 - **EC2 in Europe** — server co-located with Mistral's EU inference endpoints. Minimal network latency.
 - **Pre-generated sound bank** — 25 sounds generated offline via ElevenLabs. Instant disk lookup at runtime.
 - **Fire-and-forget commentary** — commentator runs asynchronously after the judge, never blocks the game loop
