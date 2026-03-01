@@ -9,8 +9,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy source code
+# Copy source code and install the project
 COPY src/ src/
+RUN uv sync --frozen --no-dev
 
 # Copy pre-generated sound effects
 COPY sounds_cache/ sounds_cache/
