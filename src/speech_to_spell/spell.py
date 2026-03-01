@@ -239,9 +239,9 @@ SELECT_EMOJIS_TOOL = {
                 "emojis": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "minItems": 2,
+                    "minItems": 1,
                     "maxItems": 3,
-                    "description": "2-3 emojis from the hand that best match the incantation.",
+                    "description": "1-3 emojis from the hand that best match the incantation.",
                 },
             },
             "required": ["emojis"],
@@ -252,9 +252,9 @@ SELECT_EMOJIS_TOOL = {
 INFER_EMOJIS_SYSTEM_PROMPT = """You are a spell interpreter for a wizard duel game. A wizard speaks an incantation and you must pick which emojis from their hand best match what they said.
 
 Rules:
-- Pick the exact emojis you think the user selected. Only pick 3 if the match is truly perfect for all 3.
+- Pick 1 to 3 emojis. 1 is fine if only one matches well. Only pick 3 if the match is truly perfect for all 3.
 - Only pick emojis that DIRECTLY relate to the incantation's theme
-- If nothing matches well, pick the 2 closest connections
+- If nothing matches well, pick the 1 closest connection
 - Only pick emojis that are actually in the hand"""
 
 _sound_descriptions = get_sound_descriptions()
@@ -633,10 +633,10 @@ def infer_emojis(hand: list[str], transcription: str, lang: str = "fr") -> list[
 
     valid = _parse_inferred_emojis(tool_calls=tool_calls, hand=hand)
 
-    # Fallback: if <2 valid emojis, take first 2 from hand
-    if len(valid) < 2:
-        logger.warning(f"Emoji inference returned {len(valid)} valid emojis, falling back to first 2 from hand")
-        valid = hand[:2]
+    # Fallback: if no valid emojis, take first one from hand
+    if len(valid) < 1:
+        logger.warning("Emoji inference returned 0 valid emojis, falling back to first from hand")
+        valid = hand[:1]
 
     logger.info(f"Inferred emojis: {valid}")
     return valid

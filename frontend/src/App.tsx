@@ -25,7 +25,7 @@ function App({ roomCode }: AppProps) {
   const { devices } = useAudioDevices();
   const [leftDeviceId, setLeftDeviceId] = useState("");
   const [rightDeviceId, setRightDeviceId] = useState("");
-  const [showRules, setShowRules] = useState(true);
+  const [showRules, setShowRules] = useState(false);
 
   // Push-to-talk: track which player is currently recording
   const activePlayerRef = useRef<PlayerSide | null>(null);
@@ -174,11 +174,18 @@ function App({ roomCode }: AppProps) {
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <button
             onClick={() => setShowRules(true)}
-            className="ornate-btn text-xs px-2 py-1"
+            className="px-3 py-1 rounded text-xs font-semibold tracking-wider transition-all"
             title={t("rules.tooltip")}
-            style={{ cursor: "pointer" }}
+            style={{
+              fontFamily: "'Cinzel', serif",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-subtle)",
+              color: "var(--gold)",
+              letterSpacing: "0.1em",
+              cursor: "pointer",
+            }}
           >
-            📜
+            ?
           </button>
           <LanguageToggle />
         </div>
