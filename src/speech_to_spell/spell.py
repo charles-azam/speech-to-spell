@@ -29,6 +29,10 @@ AWS_MODEL = "mistral.ministral-8b-2410-v1:0"
 _hf_client: OpenAI | None = None
 HF_MODEL = "openai/gpt-oss-120b:cerebras"
 
+# --- Local vLLM (Ministral); used when MISTRAL_CHAT_BASE_URL is set ---
+_local_client: OpenAI | None = None
+LOCAL_MINISTRAL_MODEL = "mistralai/Ministral-8B-Instruct-2410"
+
 
 def _get_mistral_client() -> Mistral:
     global _mistral_client
@@ -55,6 +59,21 @@ def _get_hf_client() -> OpenAI:
             api_key=os.environ["HUGGINGFACE_API_KEY"],
         )
     return _hf_client
+
+
+def _get_local_client() -> OpenAI:
+    """OpenAI-compatible client for local vLLM (Ministral). Used when MISTRAL_CHAT_BASE_URL is set."""
+    global _local_client
+    if _local_client is None:
+        base_url = os.environ["MISTRAL_CHAT_BASE_URL"].rstrip("/")
+        if not base_url.endswith("/v1"):
+            base_url = f"{base_url}/v1"
+        _local_client = OpenAI(
+            base_url=base_url,
+            api_key=os.environ.get("MISTRAL_API_KEY", "dummy"),
+        )
+    return _local_client
+
 
 # --- Valid templates for visual effects ---
 
@@ -564,7 +583,16 @@ def interpret_spell(
         lang=lang,
     )
 
-    logger.info(f"Using {SPELL_PROVIDER} for spell: {transcription!r} (lang={lang})")
+    # Local vLLM (opt-in): when MISTRAL_CHAT_BASE_URL is set, use it and ignore SPELL_PROVIDER for this path
+    if os.environ.get("MISTRAL_CHAT_BASE_URL"):
+        logger.info(f"Using local Ministral (vLLM) for spell: {transcription!r}")
+        return _interpret_openai(
+            client=_get_local_client(),
+            model=LOCAL_MINISTRAL_MODEL,
+            user_content=user_content,
+        )
+
+    logger.info(f"Using {SPELL_PROVIDER} for spell: {transcription!r}")
 
     if SPELL_PROVIDER == "mistral":
         return _interpret_mistral(user_content=user_content, lang=lang)

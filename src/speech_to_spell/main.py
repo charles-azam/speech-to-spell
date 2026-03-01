@@ -529,11 +529,12 @@ async def websocket_endpoint(
     room = get_room(code=room_code)
 
     if room is None:
+        logger.warning("WebSocket rejected: room %s not found", room_code)
         await websocket.close(code=4004, reason="Room not found")
         return
 
     await websocket.accept()
-    logger.info(f"WebSocket connected: room={room_code}, side={side}")
+    logger.info("WebSocket connected: room=%s side=%s", room_code, side)
 
     # Register this connection
     if side == "both":

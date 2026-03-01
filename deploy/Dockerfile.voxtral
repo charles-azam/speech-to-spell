@@ -1,0 +1,6 @@
+# Voxtral needs vLLM with audio support; the default vllm-openai image does not include it.
+# See: https://docs.vllm.ai/en/latest/deployment/docker.html
+FROM vllm/vllm-openai:latest
+
+# Install audio optional dependencies (version must match base image vLLM)
+RUN uv pip install --system "vllm[audio]"

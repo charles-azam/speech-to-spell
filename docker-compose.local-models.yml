@@ -1,0 +1,73 @@
+# Local Ministral (spell judge) and Voxtral (speech-to-text) via vLLM.
+# Requires: NVIDIA GPU, Docker with nvidia runtime, HF token for model access.
+#
+# Usage:
+#   Put HF_TOKEN in .env (Compose loads it for ${HF_TOKEN}), or export HF_TOKEN.
+#   docker compose -f docker-compose.yml -f docker-compose.local-models.yml up -d
+#
+# Then set in .env (or backend environment):
+#   MISTRAL_CHAT_BASE_URL=http://ministral:8001/v1
+#   MISTRAL_AUDIO_BASE_URL=http://voxtral:8002/v1
+#
+# Backend must be in the same compose project to resolve hostnames ministral/voxtral.
+
+services:
+  ministral:
+    image: vllm/vllm-openai:latest
+    command: >
+      --model mistralai/Ministral-8B-Instruct-2410
+      --tokenizer_mode mistral
+      --load_format mistral
+      --config_format mistral
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+
+  voxtral:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.voxtral
+    command: >
+      --model mistralai/Voxtral-Mini-3B-2507
+      --tokenizer_mode mistral
+      --load_format mistral
+      --config_format mistral
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    ports:
+      - "8002:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+
+  # Override backend env when stacking with docker-compose.yml so it uses local models
+  backend:
+    environment:
+      - MISTRAL_CHAT_BASE_URL=http://ministral:8001/v1
+      - MISTRAL_AUDIO_BASE_URL=http://voxtral:8002/v1
+    depends_on:
+      - ministral
+      - voxtral
+
+volumes:
+  huggingface_cache:

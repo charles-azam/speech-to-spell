@@ -238,6 +238,12 @@
 - Reopened via 📜 button in game header (both `App.tsx` and `RemoteGameView.tsx`)
 - Fully bilingual (FR/EN) via 13 new i18n keys
 - Matches existing ornate-card visual style with backdrop blur overlay
+### Local deployment (Ministral + Voxtral)
+- **Docker**: `docker-compose.local-models.yml` adds `ministral` (vLLM, port 8001) and `voxtral` (vLLM with audio, port 8002) services; optional backend override sets `MISTRAL_CHAT_BASE_URL` and `MISTRAL_AUDIO_BASE_URL` when stacking with main compose.
+- **Voxtral image**: `deploy/Dockerfile.voxtral` extends `vllm/vllm-openai:latest` and installs `vllm[audio]` so `/v1/audio/transcriptions` is available.
+- **spell.py**: When `MISTRAL_CHAT_BASE_URL` is set, spell interpretation uses local vLLM (OpenAI client + `mistralai/Ministral-8B-Instruct-2410`). When unset, existing Mistral/AWS/HuggingFace providers unchanged.
+- **voice.py**: When `MISTRAL_AUDIO_BASE_URL` is set, transcription uses local vLLM Voxtral (OpenAI client + `mistralai/Voxtral-Mini-3B-2507`). When unset, existing Voxtral/ElevenLabs paths unchanged.
+- **Env**: `MISTRAL_CHAT_BASE_URL`, `MISTRAL_AUDIO_BASE_URL` optional (no default); `HF_TOKEN` required for model containers. See `deploy/LOCAL_MODELS.md` for usage and GPU requirements.
 
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
