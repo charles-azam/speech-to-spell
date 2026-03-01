@@ -71,7 +71,7 @@ export function useWebSocket(
 
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as ServerMessage;
-      if (msg.type === "sound_effect") {
+      if (msg.type === "sound_effect" || msg.type === "judge_voice") {
         playSound(msg.audio);
         return;
       }

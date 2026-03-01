@@ -53,6 +53,11 @@ export interface SoundEffectMessage {
   audio: string; // base64 mp3
 }
 
+export interface JudgeVoiceMessage {
+  type: "judge_voice";
+  audio: string; // base64 mp3
+}
+
 export interface SpellFizzleMessage {
   type: "spell_fizzle";
   player: PlayerSide;
@@ -75,6 +80,7 @@ export type ServerMessage =
   | JudgeVerdictMessage
   | GameStateMessage
   | SoundEffectMessage
+  | JudgeVoiceMessage
   | SpellFizzleMessage
   | PlayerJoinedMessage
   | PlayerDisconnectedMessage;

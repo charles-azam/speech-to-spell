@@ -169,9 +169,19 @@
 - **Architecture**: Cloudflare Pages (frontend) + Hetzner VPS (backend via Docker) + Cloudflare DNS proxy (SSL termination)
 - **Backend redeploy**: `git pull && docker compose up -d --build`
 
+### ElevenLabs Judge Voice (TTS)
+- `src/speech_to_spell/tts.py`: `text_to_speech()` using ElevenLabs `eleven_multilingual_v2` model
+  - Lazy singleton client (same pattern as `voice.py`)
+  - `JUDGE_VOICE_ID` env var (default: Daniel — deep dramatic voice)
+- `main.py`: `broadcast_judge_voice()` generates TTS + broadcasts base64 MP3
+  - On YES verdict: sound effect + judge voice broadcast in parallel via `asyncio.gather`
+  - On NO verdict: judge voice only
+  - On EXPLAIN verdict: judge voice broadcast before returning (player still needs to explain)
+- Frontend: `JudgeVoiceMessage` type added, handled same as `sound_effect` in `useWebSocket.ts`
+- Judge speaks aloud every verdict comment — French roasts are now audible
+
 ## Not yet implemented
 - **RAG asset retrieval** — Mistral Embed + Qdrant for sound/image/animation lookup
-- **ElevenLabs judge voice** — TTS the French comment
 - **Commentator** — separate LLM-generated play-by-play with different voice
 - **VAD (Silero)** — not needed for turn-based
 

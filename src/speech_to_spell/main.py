@@ -36,6 +36,7 @@ from speech_to_spell.room import (
 )
 from speech_to_spell.sound import load_sound
 from speech_to_spell.spell import JudgeVerdict, interpret_spell
+from speech_to_spell.tts import text_to_speech
 from speech_to_spell.voice import transcribe
 
 logging.basicConfig(level=logging.INFO)
@@ -252,6 +253,18 @@ async def broadcast_sound_effect(room_code: str, sound_id: str | None) -> None:
             )
 
 
+async def broadcast_judge_voice(room_code: str, comment: str) -> None:
+    """Generate TTS for the judge's comment and broadcast to room."""
+    audio_bytes = await asyncio.to_thread(text_to_speech, text=comment)
+    await broadcast_to_room(
+        room_code=room_code,
+        message={
+            "type": "judge_voice",
+            "audio": base64.b64encode(audio_bytes).decode(),
+        },
+    )
+
+
 # --- Game logic ---
 
 
@@ -314,6 +327,8 @@ async def process_spell(
             selected_emojis=selected_emojis,
             transcription=transcription,
         )
+        # Still broadcast judge voice for EXPLAIN verdicts
+        await broadcast_judge_voice(room_code=room.code, comment=verdict.comment)
         return
 
     if verdict.verdict == "YES":
@@ -326,8 +341,14 @@ async def process_spell(
             spell_name=verdict.spell_name,
         )
 
-        # Send sound
-        await broadcast_sound_effect(room_code=room.code, sound_id=verdict.sound_id)
+        # Send sound effect + judge voice in parallel
+        await asyncio.gather(
+            broadcast_sound_effect(room_code=room.code, sound_id=verdict.sound_id),
+            broadcast_judge_voice(room_code=room.code, comment=verdict.comment),
+        )
+    else:
+        # NO verdict — just broadcast judge voice
+        await broadcast_judge_voice(room_code=room.code, comment=verdict.comment)
 
     # Consume emojis regardless of verdict (YES, NO, or EXPLAIN->final)
     room.game = consume_and_refill(game=room.game, player=player, used_emojis=selected_emojis)
