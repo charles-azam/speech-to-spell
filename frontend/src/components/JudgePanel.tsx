@@ -41,15 +41,10 @@ function TypewriterText({ text, speed = 30 }: { text: string; speed?: number }) 
   );
 }
 
-function VerdictStamp({ verdict }: { verdict: Verdict }) {
+function VerdictStamp({ verdict }: { verdict: "NO" | "EXPLAIN" }) {
   const { t } = useLanguage();
 
   const config = {
-    YES: {
-      text: t("judge.accepted"),
-      color: "var(--emerald)",
-      shadow: "0 0 30px var(--emerald-glow), 0 0 60px var(--emerald-glow)",
-    },
     NO: {
       text: t("judge.rejected"),
       color: "var(--crimson)",
@@ -64,18 +59,15 @@ function VerdictStamp({ verdict }: { verdict: Verdict }) {
 
   return (
     <div
-      className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-1.5 animate-verdict-stamp z-20"
+      className="text-center mb-2 animate-verdict-stamp"
       style={{
         fontFamily: "'MedievalSharp', cursive",
         fontSize: "0.85rem",
         fontWeight: "bold",
         letterSpacing: "0.15em",
         color: config.color,
-        border: `2px solid ${config.color}`,
-        borderRadius: "3px",
-        background: "var(--bg-deep)",
-        boxShadow: config.shadow,
         textTransform: "uppercase",
+        textShadow: config.shadow.replace(/box-shadow:|,/g, ""),
       }}
     >
       {config.text}
@@ -153,9 +145,6 @@ export function JudgePanel({
           boxShadow: verdict ? `0 0 25px ${verdictGlow}15, inset 0 0 25px ${verdictGlow}08` : "none",
         }}
       >
-        {/* Verdict stamp */}
-        {verdict && <VerdictStamp verdict={verdict} />}
-
         {/* Bubble pointer */}
         <div
           className="absolute -top-[7px] left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
@@ -188,7 +177,8 @@ export function JudgePanel({
             </p>
           </div>
         ) : comment ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            {(verdict === "NO" || verdict === "EXPLAIN") && <VerdictStamp verdict={verdict} />}
             <p
               className="text-sm italic leading-relaxed min-h-[3.5em]"
               style={{ fontFamily: "'Crimson Pro', serif", color: "var(--text-primary)" }}
