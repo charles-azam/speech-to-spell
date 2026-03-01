@@ -333,6 +333,7 @@ async def run_commentary(room: Room) -> None:
         events=events,
         left_name=left_name,
         right_name=right_name,
+        lang=room.lang,
     )
     await _broadcast_commentary_lines(room=room, lines=lines)
 
@@ -369,6 +370,7 @@ async def idle_commentary_loop(room: Room) -> None:
                 left_name=left_name,
                 right_name=right_name,
                 idle_seconds=int(idle_for),
+                lang=room.lang,
             )
             await _broadcast_commentary_lines(room=room, lines=lines)
 

@@ -16,7 +16,7 @@ export function LanguageToggle() {
       }}
       title={lang === "fr" ? "Switch to English" : "Passer en français"}
     >
-      {lang === "fr" ? "EN" : "FR"}
+      {lang === "fr" ? "FR" : "EN"}
     </button>
   );
 }
